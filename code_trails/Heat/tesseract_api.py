@@ -7,18 +7,22 @@ import solver # Import your solver code
 jax.config.update("jax_enable_x64", False)
 
 def apply(inputs):
-    """
-    The main entry point.
-    Expects inputs dict with:
-      - 'u_init': array of shape (N,)
-      - 'controls': array of shape (T, 4)
-    """
+    """Multi-step solver for planning."""
     u_init = jnp.array(inputs['u_init'])
     controls = jnp.array(inputs['controls'])
     
     trajectory = solver.solve_heat_equation(u_init, controls)
     
     return {"trajectory": trajectory}
+
+def step(inputs):
+    """Single-step solver for open-loop execution."""
+    u_current = jnp.array(inputs['u_current'])
+    control = jnp.array(inputs['control'])
+    
+    u_next = solver.step_heat_equation(u_current, control)
+    
+    return {"u_next": u_next}
 
 # --- Differentiability Endpoints ---
 
