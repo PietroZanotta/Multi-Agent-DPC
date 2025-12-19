@@ -158,11 +158,6 @@ with solver_ts:
         xi_init = jnp.array([0.2, 0.4, 0.6, 0.8])
         
         # Train Step
-        # Note: dynamics object might not be JIT-safe as an argument if it's not a PyTree.
-        # PDEDynamics is a class. We should register it or pass solver_ts methods differently.
-        # However, if solver_ts is stateless in python (handling state in C++/Docker), it might work?
-        # Actually, typical pattern is to define dynamics outside or as closure if possible.
-        # But let's try passing it. If it fails due to hashability, we'll fix.
 
         params, opt_state, loss, aux = train_step(
             params, opt_state, z_init, xi_init, z_target, dynamics
