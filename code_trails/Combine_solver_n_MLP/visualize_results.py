@@ -6,6 +6,8 @@ from tesseract_core import Tesseract
 import sys
 import flax.serialization
 from pathlib import Path
+jax.config.update("jax_platform_name", "cpu")
+
 
 # Add project root to sys.path
 script_dir = Path(__file__).resolve().parent.parent.parent
@@ -19,7 +21,7 @@ def load_params(model, filepath):
     with open(filepath, 'rb') as f:
         serialized_bytes = f.read()
     # Initialize dummy params to have the correct structure for restoration
-    dummy_input = jnp.zeros((1, 100)) # matches main.py n_pde
+    dummy_input = jnp.zeros((1, 200)) # matches main.py n_pde * 2
     key = jax.random.PRNGKey(0)
     init_params = model.init(key, dummy_input)
     return flax.serialization.from_bytes(init_params, serialized_bytes)
@@ -30,13 +32,17 @@ def visualize_rollout(params, model, z_init, xi_init, z_target, dynamics, T_step
         z_curr, xi_curr = carry
         
         # Policy inference
-        action_flat = model.apply(params, z_curr[jnp.newaxis, :])[0]
+        policy_input = jnp.concatenate([z_curr, z_target], axis=-1)
+        action_flat = model.apply(params, policy_input[jnp.newaxis, :])[0]
+        # action_flat is now (4,) for u
         u_action, v_action = split_action(action_flat)
         
         actions = {'u': u_action, 'v': v_action}
         
         # Dynamics step
-        z_next, xi_next = dynamics.step(z_curr, xi_curr, actions)
+        # Force CPU for Dynamics because it uses Python Callbacks
+        with jax.default_device(jax.devices("cpu")[0]):
+            z_next, xi_next = dynamics.step(z_curr, xi_curr, actions)
         
         return (z_next, xi_next), (z_next, xi_next, u_action, v_action)
     
@@ -53,8 +59,8 @@ def main():
     # Setup
     n_pde = 100
     n_agents = 4
-    output_dim = 8
-    T_steps = 10 # Match training for now
+    output_dim = 4 # u only
+    T_steps = 300 # Match training for now
     
     # Initialize Environment
     solver_ts = Tesseract.from_image("solver_v1")
@@ -75,7 +81,7 @@ def main():
         key = jax.random.PRNGKey(42) # Different seed
         
         # Create a figure
-        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        fig, axes = plt.subplots(2, 3, figsize=(20, 10))
         
         for i in range(2): # 2 examples
             key, subkey1, subkey2 = jax.random.split(key, 3)
@@ -109,8 +115,14 @@ def main():
             # Plot Controls
             ax2 = axes[i, 1]
             ax2.plot(u_traj, label=[f'u{k}' for k in range(4)])
-            ax2.set_title(f"Example {i+1}: Controls (u)")
+            ax2.set_title(f"Example {i+1}: Controls (u - Forcing)")
             ax2.legend()
+            
+            # Plot Controls (v)
+            ax3 = axes[i, 2]
+            ax3.plot(v_traj, label=[f'v{k}' for k in range(4)])
+            ax3.set_title(f"Example {i+1}: Controls (v - Velocity)")
+            ax3.legend()
             
         plt.tight_layout()
         plt.savefig('visualization_results_dpc.png')

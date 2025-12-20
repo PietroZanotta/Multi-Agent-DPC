@@ -21,31 +21,20 @@ def rbf_kernel(x1, x2, length_scale=0.2, sigma=1.0):
 def generate_grf(key, n_points=100, length_scale=0.2, sigma=1.0):
     """
     Generates a smooth Gaussian Random Field on [0, 1] with zero boundary conditions.
-    
-    Args:
-        key: JAX PRNG key
-        n_points: Number of grid points
-        length_scale: Controls smoothness (larger = smoother)
-        sigma: Amplitude scale
-        
-    Returns:
-        x_grid: The grid points (n_points,)
-        field: The generated field values (n_points,)
+    Running on CPU to avoid Metal/GPU issues with Cholesky.
     """
-    x_grid = jnp.linspace(0, 1, n_points)
-    
-    # 1. Compute Covariance Matrix
-    # We add a small jitter for numerical stability during Cholesky
-    K = rbf_kernel(x_grid, x_grid, length_scale, sigma) + jnp.eye(n_points) * 1e-4
-    
-    # 2. Sample from Multivariate Normal samples ~ N(0, K)
-    L = jnp.linalg.cholesky(K)
-    z = jax.random.normal(key, shape=(n_points,))
-    f_sample = L @ z
+    with jax.default_device(jax.devices("cpu")[0]):
+        x_grid = jnp.linspace(0, 1, n_points)
+        
+        # 1. Compute Covariance Matrix
+        K = rbf_kernel(x_grid, x_grid, length_scale, sigma) + jnp.eye(n_points) * 1e-4
+        
+        # 2. Sample from Multivariate Normal samples ~ N(0, K)
+        L = jnp.linalg.cholesky(K)
+        z = jax.random.normal(key, shape=(n_points,))
+        f_sample = L @ z
     
     # 3. Apply Bridge Correction to enforce f(0) = 0 and f(1) = 0
-    # Formula: g(x) = f(x) - [f(0) + x * (f(1) - f(0))]
-    # This subtracts the linear interpolation between endpoints
     f_0 = f_sample[0]
     f_1 = f_sample[-1]
     

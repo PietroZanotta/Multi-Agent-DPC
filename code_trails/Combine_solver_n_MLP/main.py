@@ -1,10 +1,12 @@
 import jax
+jax.config.update("jax_platform_name", "cpu")
 import jax.numpy as jnp
 from tesseract_core import Tesseract
 import sys
 import os
 from pathlib import Path
 import optax
+import time
 from functools import partial
 
 # Add project root to sys.path
@@ -25,13 +27,13 @@ solver_ts = Tesseract.from_image("solver_v1")
 # Dimensions
 n_pde = 100
 n_agents = 4
-input_dim = n_pde # Only PDE state
-output_dim = 8 # u(4) + v(4)
+input_dim = n_pde * 2 # PDE state + Target
+output_dim = 4 # u(4) only, v(4) is zeroed in split_action
 
 # Hyperparameters
-learning_rate = 1e-4 # Reduced LR
+learning_rate = 1e-3 # Reduced LR
 epochs = 50
-T_steps = 100 # Keep at 10 for now
+T_steps = 300 # Keep at 10 for now
 R_safe = 0.05
 
 # Initialize MLP
@@ -49,7 +51,7 @@ print("Model and Optimizer initialized.")
 
 # --- 2. Loss & Rollout Functions ---
 
-def rollout_fn(params, z_init, xi_init, dynamics):
+def rollout_fn(params, z_init, xi_init, z_target, dynamics):
     """
     Simulates the system forward for T_steps using the policy.
     """
@@ -58,16 +60,19 @@ def rollout_fn(params, z_init, xi_init, dynamics):
         z_curr, xi_curr = carry
         
         # Policy inference
-        # Input: just the PDE state (z_curr) dimensions: (N,)
+        # Input: z_curr (N,) and z_target (N,)
         # MLP expects (Batch, Features) => Add batch dim, then [0]
-        action_flat = model.apply(params, z_curr[jnp.newaxis, :])[0]
+        policy_input = jnp.concatenate([z_curr, z_target], axis=-1)
+        action_flat = model.apply(params, policy_input[jnp.newaxis, :])[0]
         
         u_action, v_action = split_action(action_flat)
         
         actions = {'u': u_action, 'v': v_action}
         
         # Dynamics step
-        z_next, xi_next = dynamics.step(z_curr, xi_curr, actions)
+        # Force CPU for Dynamics because it uses Python Callbacks
+        with jax.default_device(jax.devices("cpu")[0]):
+            z_next, xi_next = dynamics.step(z_curr, xi_curr, actions)
         
         # Carry over next state
         return (z_next, xi_next), (z_next, xi_next, u_action, v_action)
@@ -88,14 +93,14 @@ def rollout_fn(params, z_init, xi_init, dynamics):
     return z_traj, xi_traj, u_traj, v_traj
 
 def loss_fn(params, z_init, xi_init, z_target, dynamics):
-    z_traj, xi_traj, u_traj, v_traj = rollout_fn(params, z_init, xi_init, dynamics)
+    z_traj, xi_traj, u_traj, v_traj = rollout_fn(params, z_init, xi_init, z_target, dynamics)
     
     # 1. Tracking Loss: MSE between z_traj and z_target (broadcasted or same shape)
     # z_traj: (T, N), z_target: (N,) -> Broadcast target across time
     l_track = jnp.mean((z_traj - z_target[None, :]) ** 2)
     
     # 2. Effort Loss: L2 norm of controls
-    l_effort = jnp.mean(u_traj ** 2) + jnp.mean(v_traj ** 2)
+    l_effort = jnp.mean(u_traj ** 2) # + jnp.mean(v_traj ** 2) (Velocity disabled)
     
     # 3. Collision Avoidance Loss
     # xi_traj: (T, n_agents)
@@ -116,7 +121,7 @@ def loss_fn(params, z_init, xi_init, z_target, dynamics):
     
     # Total Loss
     # Weights can be tuned
-    total_loss = l_track + 0.001 * l_effort + 1.0 * l_coll
+    total_loss = l_track #+ 0.001 * l_effort + 1.0 * l_coll
     
     return total_loss, (l_track, l_effort, l_coll)
 
@@ -126,7 +131,7 @@ def train_step(params, opt_state, z_init, xi_init, z_target, dynamics):
         params, z_init, xi_init, z_target, dynamics
     )
     # Gradient clipping
-    grads = jax.tree_util.tree_map(lambda g: jnp.clip(g, -1.0, 1.0), grads)
+    # grads = jax.tree_util.tree_map(lambda g: jnp.clip(g, -1.0, 1.0), grads)
     updates, opt_state = optimizer.update(grads, opt_state)
     params = optax.apply_updates(params, updates)
     return params, opt_state, loss, aux
@@ -139,6 +144,7 @@ with solver_ts:
     
     metrics = []
     
+    start_time = time.time()
     for epoch in range(epochs):
         # Sample Environment
         # Split key
@@ -165,11 +171,13 @@ with solver_ts:
         l_track, l_effort, l_coll = aux
         
         if epoch % 10 == 0:
-            print(f"Epoch {epoch:03d} | Loss: {loss:.6f} | Track: {l_track:.6f} | Effort: {l_effort:.6f} | Coll: {l_coll:.6f}")
+            elapsed = time.time() - start_time
+            print(f"Epoch {epoch:03d} | Time: {elapsed:.2f}s | Loss: {loss:.6f} | Track: {l_track:.6f} | Effort: {l_effort:.6f} | Coll: {l_coll:.6f}")
             metrics.append((epoch, loss, l_track, l_effort, l_coll))
                 
             
-    print("Training complete.")
+    total_time = time.time() - start_time
+    print(f"Training complete. Total time: {total_time:.2f}s")
     
     # Save parameters
     import flax.serialization
