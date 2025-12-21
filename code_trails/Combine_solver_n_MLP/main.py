@@ -32,7 +32,7 @@ output_dim = 4 # u(4) only, v(4) is zeroed in split_action
 
 # Hyperparameters
 learning_rate = 1e-3 # Reduced LR
-epochs = 50
+epochs = 100
 T_steps = 300 # Keep at 10 for now
 R_safe = 0.05
 

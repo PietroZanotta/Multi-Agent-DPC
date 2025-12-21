@@ -13,8 +13,8 @@ from functools import partial
 script_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(script_dir))
 
-from dpc_engine.dynamics_dual import PDEDynamics
-from models import MLP
+from dpc_engine.dynamics import PDEDynamics
+from models import MLP, split_action
 import data_utils
 
 # --- 1. Initialization ---
@@ -32,18 +32,16 @@ output_dim = 4 # u(4) only, v(4) is zeroed in split_action
 
 # Hyperparameters
 learning_rate = 1e-3 # Reduced LR
-epochs = 1000
+epochs = 100
 T_steps = 300 # Keep at 10 for now
 R_safe = 0.05
 
 # Initialize MLP
-model = MLP(features=(64, 64))
+model = MLP(features=(64, 64, output_dim))
 key = jax.random.PRNGKey(0)
 
-dummy_z = jnp.zeros((n_pde,))
-dummy_target = jnp.zeros((n_pde,))
-dummy_xi = jnp.zeros((n_agents,))
-params = model.init(key, dummy_z, dummy_target, dummy_xi)
+dummy_input = jnp.zeros((1, input_dim))
+params = model.init(key, dummy_input)
 
 # Optimizer
 optimizer = optax.adam(learning_rate)
@@ -54,61 +52,78 @@ print("Model and Optimizer initialized.")
 # --- 2. Loss & Rollout Functions ---
 
 def rollout_fn(params, z_init, xi_init, z_target, dynamics):
+    """
+    Simulates the system forward for T_steps using the policy.
+    """
+    
     def step_fn(carry, _):
         z_curr, xi_curr = carry
         
-        # Policy now takes xi_curr as an explicit input
-        # No more jax.newaxis hacks here; let's keep it clean
-        u_action, v_action = model.apply(params, z_curr, z_target, xi_curr)
+        # Policy inference
+        # Input: z_curr (N,) and z_target (N,)
+        # MLP expects (Batch, Features) => Add batch dim, then [0]
+        policy_input = jnp.concatenate([z_curr, z_target], axis=-1)
+        action_flat = model.apply(params, policy_input[jnp.newaxis, :])[0]
+        
+        u_action, v_action = split_action(action_flat)
         
         actions = {'u': u_action, 'v': v_action}
         
+        # Dynamics step
+        # Force CPU for Dynamics because it uses Python Callbacks
         with jax.default_device(jax.devices("cpu")[0]):
             z_next, xi_next = dynamics.step(z_curr, xi_curr, actions)
         
+        # Carry over next state
         return (z_next, xi_next), (z_next, xi_next, u_action, v_action)
         
+    # Scan over T_steps
+    # We don't care about inputs per step (second arg of scan), so we pass None or range
+    # But lax.scan expects xs to match length. 
+    # Actually dynamics.step needs to be pure JAX for this to work inside JIT.
+    # Check if PDEDynamics.step is JIT-compatible.
+    
     _, (z_traj, xi_traj, u_traj, v_traj) = jax.lax.scan(
-        step_fn, (z_init, xi_init), None, length=T_steps
+        step_fn, 
+        (z_init, xi_init), 
+        None, 
+        length=T_steps
     )
+    
     return z_traj, xi_traj, u_traj, v_traj
 
 def loss_fn(params, z_init, xi_init, z_target, dynamics):
     z_traj, xi_traj, u_traj, v_traj = rollout_fn(params, z_init, xi_init, z_target, dynamics)
     
-    # 1. Tracking Loss (Global Error)
+    # 1. Tracking Loss: MSE between z_traj and z_target (broadcasted or same shape)
+    # z_traj: (T, N), z_target: (N,) -> Broadcast target across time
     l_track = jnp.mean((z_traj - z_target[None, :]) ** 2)
     
-    # 2. Effort Loss
-    l_effort = jnp.mean(u_traj ** 2) + 0.1 * jnp.mean(v_traj ** 2)
+    # 2. Effort Loss: L2 norm of controls
+    l_effort = jnp.mean(u_traj ** 2) # + jnp.mean(v_traj ** 2) (Velocity disabled)
     
-    # 3. Improved Boundary Penalty using max(0, dist)^2
-    # We define a "safety buffer" (e.g., 0.02) from the edges [0, 1]
-    margin = 0.02
-    
-    # Violation if xi < margin
-    left_violation = jnp.maximum(0, margin - xi_traj) 
-    # Violation if xi > (1 - margin)
-    right_violation = jnp.maximum(0, xi_traj - (1.0 - margin))
-    
-    # Summing squared violations provides a "wall" that gets steeper the further you go out
-    l_bound = jnp.mean(left_violation**2 + right_violation**2)
-    
-    # 4. Collision Avoidance (Keeping the one-sided logic you already had)
+    # 3. Collision Avoidance Loss
+    # xi_traj: (T, n_agents)
+    # Compute pairwise distances
+    # Expand dims to (T, N, 1) and (T, 1, N)
     xi_exp = xi_traj[:, :, None]
     xi_t_exp = xi_traj[:, None, :]
     dists = jnp.abs(xi_exp - xi_t_exp)
-    mask = jnp.eye(n_agents)[None, :, :]
-    dists = dists + mask * 1.0 
     
-    l_coll = jnp.mean(jnp.maximum(0, R_safe - dists) ** 2)
+    # Avoid self-collision (diagonal is 0)
+    # We can add identity * large_number to dists
+    mask = jnp.eye(n_agents)[None, :, :]
+    dists = dists + mask * 1.0 # Add 1.0 to diagonal so it doesn't trigger collision
+    
+    # Penalty: max(0, R_safe - dist)^2
+    coll_penalty = jnp.sum(jnp.maximum(0, R_safe - dists) ** 2, axis=(1, 2))
+    l_coll = jnp.mean(coll_penalty)
     
     # Total Loss
-    # We can now set the boundary weight very high (e.g., 100) 
-    # because it doesn't interfere with the physics when the agent is safe.
-    total_loss = l_track + 0.001 * l_effort + 100.0 * l_bound + 1.0 * l_coll
+    # Weights can be tuned
+    total_loss = l_track #+ 0.001 * l_effort + 1.0 * l_coll
     
-    return total_loss, (l_track, l_effort, l_coll, l_bound)
+    return total_loss, (l_track, l_effort, l_coll)
 
 @partial(jax.jit, static_argnames='dynamics')
 def train_step(params, opt_state, z_init, xi_init, z_target, dynamics):
@@ -123,7 +138,7 @@ def train_step(params, opt_state, z_init, xi_init, z_target, dynamics):
 
 # --- 3. Main Training Loop ---
 with solver_ts:
-    dynamics = PDEDynamics(solver_ts, use_tesseract=False)
+    dynamics = PDEDynamics(solver_ts)
     
     print(f"Starting Training for {epochs} epochs...")
     
@@ -153,7 +168,7 @@ with solver_ts:
         params, opt_state, loss, aux = train_step(
             params, opt_state, z_init, xi_init, z_target, dynamics
         )
-        l_track, l_effort, l_coll, l_bound = aux
+        l_track, l_effort, l_coll = aux
         
         if epoch % 10 == 0:
             elapsed = time.time() - start_time

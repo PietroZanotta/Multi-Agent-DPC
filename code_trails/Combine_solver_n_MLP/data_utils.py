@@ -42,24 +42,3 @@ def generate_grf(key, n_points=100, length_scale=0.2, sigma=1.0):
     field = f_sample - linear_trend
     
     return x_grid, field
-
-if __name__ == "__main__":
-    # Test block to visualize if run directly
-    import matplotlib.pyplot as plt
-    
-    print("Generating GRF samples...")
-    key = jax.random.PRNGKey(42)
-    keys = jax.random.split(key, 5)
-    
-    plt.figure(figsize=(10, 6))
-    
-    for k in keys:
-        x, y = generate_grf(k, n_points=100, length_scale=0.15)
-        plt.plot(x, y)
-        
-    plt.title("Smooth GRF Samples with Zero Boundaries")
-    plt.grid(True, alpha=0.3)
-    plt.xlabel("x")
-    plt.ylabel("f(x)")
-    plt.savefig("grf_samples.png")
-    print("Saved grf_samples.png")
