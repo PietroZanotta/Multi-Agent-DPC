@@ -60,7 +60,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(10, 6))
     
     for k in keys:
-        x, y = generate_grf(k, n_points=100, length_scale=0.1)
+        x, y = generate_grf(k, n_points=100, length_scale=0.4)
         plt.plot(x, y)
         
     plt.title("Smooth GRF Samples with Zero Boundaries")
@@ -69,20 +69,4 @@ if __name__ == "__main__":
     plt.ylabel("f(x)")
     plt.savefig("grf_samples.png")
     print("Saved grf_samples.png")
-    
-    print("Generating GRF samples...")
-    key = jax.random.PRNGKey(42)
-    keys = jax.random.split(key, 5)
-    
-    plt.figure(figsize=(10, 6))
-    
-    for k in keys:
-        x, y = generate_grf(k, n_points=100, length_scale=0.15)
-        plt.plot(x, y)
-        
-    plt.title("Smooth GRF Samples with Zero Boundaries")
-    plt.grid(True, alpha=0.3)
-    plt.xlabel("x")
-    plt.ylabel("f(x)")
-    plt.savefig("grf_samples2.png")
-    print("Saved grf_samples2.png")
+
