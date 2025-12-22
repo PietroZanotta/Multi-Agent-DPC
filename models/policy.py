@@ -93,7 +93,8 @@ class DecentralizedControlNet(nn.Module):
         x = local_patch
         for feat in self.features:
             x = nn.Dense(feat)(x)
-            x = nn.GroupNorm(num_groups=1)(x) # Local-only normalization
+            # x = nn.GroupNorm(num_groups=1, epsilon=1e-5)(x) # Local-only normalization
+            x = x / (jnp.linalg.norm(x) + 1.0) 
             x = nn.tanh(x)
         return x
 
@@ -109,25 +110,31 @@ class DecentralizedControlNet(nn.Module):
     def __call__(self, z_curr, z_target, xi_curr):
         error = z_curr - z_target
         n_pde = z_curr.shape[0]
-        window_size = int(self.sensor_range * n_pde)
+        
+        # 1. CALCULATE GRADIENT FIRST (before padding)
+        # This uses the full field to get the true slope at the boundaries
+        error_grad = jnp.gradient(error)
+
+        window_size = 8 
         half_window = window_size // 2
 
-        # --- Boundary Padding (Prevents Boundary Bounce) ---
-        # 'edge' padding mimics the physical boundary of the PDE to avoid info sharing among agents
+        # 2. PAD BOTH (Use 'edge' to mimic Neumann boundary conditions if that's your PDE)
         padded_error = jnp.pad(error, (half_window, half_window), mode='edge')
+        padded_grad = jnp.pad(error_grad, (half_window, half_window), mode='edge')
 
         def get_local_obs(xi):
-            # Map GPS coordinate to padded array index
-            center_idx = (xi * (n_pde - 1)).astype(int) + half_window
+            # Clamp xi to [0, 1] for safety
+            xi = jnp.clip(xi, 0.0, 1.0)
+            
+            # Use stop_gradient on indices to prevent 'stepping' through pixels
+            center_idx = jax.lax.stop_gradient((xi * (n_pde - 1)).astype(int)) + half_window
             start = center_idx - half_window
             
-            # --- Pure Local Slicing (Prevents Global Leaks) ---
+            # Slice the pre-computed, pre-padded fields
             p_err = jax.lax.dynamic_slice(padded_error, (start,), (window_size,))
+            p_grad = jax.lax.dynamic_slice(padded_grad, (start,), (window_size,))
             
-            # Local gradient calculation on the slice
-            p_grad = jnp.gradient(p_err) 
-
-            # Standardize input for the Branch Net
+            # Resize with 'linear' (more stable than bilinear for 1D arrays)
             p_err = jax.image.resize(p_err, (20,), method='bilinear')
             p_grad = jax.image.resize(p_grad, (20,), method='bilinear')
             
@@ -148,6 +155,3 @@ class DecentralizedControlNet(nn.Module):
         # --- Bi-directional Velocity ---
         # Using tanh allows agents to move both left and right
         return self.u_max * jnp.tanh(u_raw), self.v_max * jnp.tanh(v_raw)
-    
-
-

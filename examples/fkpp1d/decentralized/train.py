@@ -23,7 +23,7 @@ print("Initializing environment and Decentralized model...")
 
 solver_ts = Tesseract.from_image("solver_fkpp1d_v1")
 n_pde = 100
-n_agents = 4
+n_agents = 8
 batch_size = 32
 epochs = 500
 T_steps = 300 

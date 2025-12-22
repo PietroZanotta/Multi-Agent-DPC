@@ -75,6 +75,9 @@ def loss_fn(params, z_init, xi_init, z_target, dynamics):
 
 @partial(jax.jit, static_argnames='dynamics')
 def train_step(params, opt_state, z_init_batch, xi_init_batch, z_target_batch, dynamics):
+    z_init_batch = jax.lax.stop_gradient(z_init_batch)
+    z_target_batch = jax.lax.stop_gradient(z_target_batch)
+    
     batched_loss_fn = jax.vmap(loss_fn, in_axes=(None, 0, 0, 0, None))
     
     def mean_loss_fn(p):

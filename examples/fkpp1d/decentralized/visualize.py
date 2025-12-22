@@ -42,7 +42,7 @@ def visualize_rollout(params, model, z_init, xi_init, z_target, dynamics, T_step
     return z_traj, xi_traj, u_traj, v_traj
 
 def main():
-    n_pde, n_agents, T_steps = 100, 4, 300 # 4 agents for decentralized in this case. Can be changed
+    n_pde, n_agents, T_steps = 100, 6, 300 # 4 agents for decentralized in this case. Can be changed
     solver_ts = Tesseract.from_image("solver_v1")
     
     with solver_ts:

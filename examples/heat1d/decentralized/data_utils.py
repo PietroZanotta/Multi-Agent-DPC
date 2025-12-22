@@ -27,7 +27,7 @@ def generate_grf(key, n_points=100, length_scale=0.4, sigma=1.0):
         x_grid = jnp.linspace(0, 1, n_points)
         
         # 1. Compute Covariance Matrix
-        K = rbf_kernel(x_grid, x_grid, length_scale, sigma)
+        K = rbf_kernel(x_grid, x_grid, length_scale, sigma) + jnp.eye(n_points) * 1e-6
         
         # 2. Eigenvalue decomposition for stable sampling
         # K = V @ diag(w) @ V.T
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(10, 6))
     
     for k in keys:
-        x, y = generate_grf(k, n_points=100, length_scale=0.15)
+        x, y = generate_grf(k, n_points=100, length_scale=0.1)
         plt.plot(x, y)
         
     plt.title("Smooth GRF Samples with Zero Boundaries")
@@ -69,3 +69,20 @@ if __name__ == "__main__":
     plt.ylabel("f(x)")
     plt.savefig("grf_samples.png")
     print("Saved grf_samples.png")
+    
+    print("Generating GRF samples...")
+    key = jax.random.PRNGKey(42)
+    keys = jax.random.split(key, 5)
+    
+    plt.figure(figsize=(10, 6))
+    
+    for k in keys:
+        x, y = generate_grf(k, n_points=100, length_scale=0.15)
+        plt.plot(x, y)
+        
+    plt.title("Smooth GRF Samples with Zero Boundaries")
+    plt.grid(True, alpha=0.3)
+    plt.xlabel("x")
+    plt.ylabel("f(x)")
+    plt.savefig("grf_samples2.png")
+    print("Saved grf_samples2.png")

@@ -59,6 +59,7 @@ print("Model and Optimizer initialized.")
 def rollout_fn(params, z_init, xi_init, z_target, dynamics):
     def step_fn(carry, _):
         z_curr, xi_curr = carry
+        xi_curr = jnp.clip(xi_curr, 0.0, 1.0)
         u_action, v_action = model.apply(params, z_curr, z_target, xi_curr)
         actions = {'u': u_action, 'v': v_action}
         

@@ -49,28 +49,17 @@ def generate_grf_unbounded(key, n_points=100, length_scale=0.4, sigma=1.0):
     
     return x_grid, field
 
-# def generate_grf(key, n_points=100, length_scale=0.2, sigma=1.0):
-#     x_grid, field = generate_grf_unbounded(key, n_points, length_scale, sigma)
-    
-#     # Apply a sigmoid to squash values to (0, 1)
-#     # Note: Since the GRF bridge forces boundaries to 0, 
-#     # sigmoid(0) = 0.5. We need to shift it back to 0 at the boundaries.
-    
-#     bounded_field = jax.nn.sigmoid(field) 
-    
-#     # Re-enforce zero boundaries if needed for your specific control task
-#     # (e.g., by multiplying by a window function like sin(pi * x))
-#     window = jnp.sin(jnp.pi * x_grid)
-#     return x_grid, bounded_field * window
-
 def generate_grf(key, n_points=100, length_scale=0.1, sigma=2.0):
     x_grid, field = generate_grf_unbounded(key, n_points, length_scale, sigma)
     
     # Method A: Softplus (Allows for very sparse "islands" of population)
     # Raising the field or lowering sigma creates more 'empty' space
-    bounded_field = jax.nn.softplus(field - 1.0) 
+    # bounded_field = field**2# jax.nn.softplus(field - 1.0) 
+    pos_field = jnp.exp(field)
+    envelope = jnp.sin(jnp.pi * x_grid)**2
     
     # Normalize to [0, 1]
+    bounded_field = pos_field * envelope
     bounded_field = bounded_field / (jnp.max(bounded_field) + 1e-6)
     
     return x_grid, bounded_field
@@ -86,7 +75,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(10, 6))
     
     for k in keys:
-        x, y = generate_grf(k, n_points=100, length_scale=0.15)
+        x, y = generate_grf(k, n_points=100, length_scale=0.2)
         plt.plot(x, y)
         
     plt.title("Smooth GRF Samples with Zero Boundaries")

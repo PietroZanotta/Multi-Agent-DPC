@@ -32,24 +32,34 @@ def solve_tridiagonal_diffusion(z_explicit, r, N):
     Solves (I - r*L)z = z_explicit using 1D tridiagonal solver.
     """
     # 1. Diagonals (N,)
-    d = jnp.ones(N) * (1 + 2 * r)
-    d = d.at[0].set(1 + r)
-    d = d.at[-1].set(1 + r)
+    # d = jnp.ones(N) * (1 + 2 * r)
+    # d = d.at[0].set(1 + r)
+    # d = d.at[-1].set(1 + r)
     
+    # ld = jnp.ones(N) * (-r)
+    # ud = jnp.ones(N) * (-r)
+    
+    # To enforce Dirichlet (z=0 at boundaries):
+    d = jnp.ones(N) * (1 + 2 * r)
+    d = d.at[0].set(1.0)   # Identity-like at boundary
+    d = d.at[-1].set(1.0)
+
     ld = jnp.ones(N) * (-r)
+    ld = ld.at[0].set(0.0) # Disconnect from neighbor
+
     ud = jnp.ones(N) * (-r)
+    ud = ud.at[-1].set(0.0) # Disconnect from neighbor
     
     # 2. Fix the RHS shape
     # z_explicit is (N,) -> reshape to (N, 1)
-    rhs = z_explicit[:, jnp.newaxis]
+    rhs_values = z_explicit.at[0].set(0.0).at[-1].set(0.0)
+    rhs = rhs_values[:, jnp.newaxis]
     
     # 3. Solve
     # out will have shape (N, 1)
     out = jax.lax.linalg.tridiagonal_solve(ld, d, ud, rhs)
-    
-    # Flatten back to (N,)
     return out.ravel()
-
+    
 @jit
 def fkpp_step_1d(carry, actions):
     """

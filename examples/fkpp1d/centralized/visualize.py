@@ -38,7 +38,7 @@ def visualize_rollout(params, model, z_init, xi_init, z_target, dynamics, T_step
     return z_traj, xi_traj, u_traj, v_traj
 
 def main():
-    n_pde, n_agents, T_steps = 100, 5, 300
+    n_pde, n_agents, T_steps = 100, 6, 300
     solver_ts = Tesseract.from_image("solver_v1")
     
     with solver_ts:
@@ -52,7 +52,7 @@ def main():
             print("Error: centralized_params.msgpack not found. Run training first.")
             return
 
-        key = jax.random.PRNGKey(1234)
+        key = jax.random.PRNGKey(2)
         
         # 2 Examples, 4 Columns (State, U, V, Xi)
         fig, axes = plt.subplots(2, 4, figsize=(24, 10))
