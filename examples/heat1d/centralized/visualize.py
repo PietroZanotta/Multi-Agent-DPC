@@ -8,21 +8,19 @@ from pathlib import Path
 jax.config.update("jax_platform_name", "cpu")
 
 # Add project root to sys.path
-script_dir = Path(__file__).resolve().parent.parent.parent
+script_dir = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.append(str(script_dir))
 
-from dpc_engine.dynamics_dual import PDEDynamics
-from models import MLP
+from dynamics_dual import PDEDynamics # TODO: switch to dynamics.py for Tesseract-only
+from models.policy import ControlNet
 import data_utils
 
 def load_params(model, filepath, n_pde=100, n_agents=4):
     with open(filepath, 'rb') as f:
         serialized_bytes = f.read()
     key = jax.random.PRNGKey(0)
-    dummy_z = jnp.zeros((n_pde,))
-    dummy_target = jnp.zeros((n_pde,))
-    dummy_xi = jnp.zeros((n_agents,))
-    init_params = model.init(key, dummy_z, dummy_target, dummy_xi)
+    # Match the 3-arg signature of ControlNet
+    init_params = model.init(key, jnp.zeros((n_pde,)), jnp.zeros((n_pde,)), jnp.zeros((n_agents,)))
     return flax.serialization.from_bytes(init_params, serialized_bytes)
 
 def visualize_rollout(params, model, z_init, xi_init, z_target, dynamics, T_steps=300):
@@ -45,17 +43,18 @@ def main():
     
     with solver_ts:
         dynamics = PDEDynamics(solver_ts, use_tesseract=False)
-        model = MLP(features=(64, 64))
+        model = ControlNet(features=(64, 64))
         
         try:
-            params = load_params(model, 'model_params.msgpack', n_pde, n_agents)
+            params = load_params(model, 'centralized_params.msgpack', n_pde, n_agents)
             print("Loaded model parameters.")
         except FileNotFoundError:
-            print("Error: model_params.msgpack not found.")
+            print("Error: centralized_params.msgpack not found. Run training first.")
             return
 
-        key = jax.random.PRNGKey(42)
-        # Added a 4th column for Actuator Positions
+        key = jax.random.PRNGKey(1234)
+        
+        # 2 Examples, 4 Columns (State, U, V, Xi)
         fig, axes = plt.subplots(2, 4, figsize=(24, 10))
         
         for i in range(2): 
@@ -70,25 +69,36 @@ def main():
             
             x_grid = jnp.linspace(0, 1, n_pde)
             
-            # --- Column 1: State Evolution ---
+            # --- Column 1: State Evolution (Modified with script 2 features) ---
             ax = axes[i, 0]
             ax.plot(x_grid, z_target, 'k--', label='Target', linewidth=2)
             ax.plot(x_grid, z_init, 'b:', label='Initial', alpha=0.6)
+            
+            # Feature from script 2: Plot intermediate steps (faint)
+            for t in range(0, T_steps, 10): # Plot every 10 steps for clarity
+                ax.plot(x_grid, z_traj[t], 'g-', alpha=0.1)
+                
             ax.plot(x_grid, z_traj[-1], 'r-', label='Final Output', linewidth=2)
-            # Add dots for final actuator positions
-            ax.scatter(xi_traj[-1], z_traj[-1, (xi_traj[-1]*n_pde).astype(int)], color='red', zorder=5, label='Actuators')
+            
+            # Highlight final actuator positions (from script 1)
+            act_idx = (xi_traj[-1] * n_pde).astype(int)
+            ax.scatter(xi_traj[-1], z_traj[-1, act_idx], color='red', zorder=5, label='Actuators')
+            
             ax.set_title(f"Ex {i+1}: State Evolution")
+            ax.set_ylim([-2, 2]) # Feature from script 2
             ax.legend()
             
-            # --- Column 2: Controls (u) ---
+            # --- Column 2: Controls (u) (Modified with script 2 labels) ---
             ax2 = axes[i, 1]
-            ax2.plot(u_traj)
+            ax2.plot(u_traj, label=[f'u{k}' for k in range(n_agents)])
             ax2.set_title(f"Ex {i+1}: Forcing Intensity (u)")
+            ax2.legend()
             
-            # --- Column 3: Controls (v) ---
+            # --- Column 3: Controls (v) (Modified with script 2 labels) ---
             ax3 = axes[i, 2]
-            ax3.plot(v_traj)
+            ax3.plot(v_traj, label=[f'v{k}' for k in range(n_agents)])
             ax3.set_title(f"Ex {i+1}: Velocity (v)")
+            ax3.legend()
 
             # --- Column 4: Actuator Trajectories (xi) ---
             ax4 = axes[i, 3]
@@ -104,7 +114,7 @@ def main():
             
         plt.tight_layout()
         plt.savefig('visualization_results_dpc.png')
-        print("Saved visualization to visualization_results_dpc.png")
+        print("Saved updated visualization to visualization_results_dpc.png")
 
 if __name__ == "__main__":
     main()

@@ -44,7 +44,7 @@ def generate_grf(key, n_points=100, length_scale=0.2, sigma=1.0):
     return x_grid, field
 
 if __name__ == "__main__":
-    # Test block to visualize if runs directly
+    # Test block to visualize if run directly
     import matplotlib.pyplot as plt
     
     print("Generating GRF samples...")

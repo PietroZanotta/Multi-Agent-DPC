@@ -1,18 +1,29 @@
 dpc_project/
-├── tesseracts/
-│   └── fem_solver/           # The "Legacy" Simulator (just RK4 in our case I'd say)
-│       ├── tesseract_api.py  # Must define 'apply' and 'vjp'
-│       ├── solver_logic.py   # Your legacy C++/Julia/Python FEM code
-│       └── Dockerfile        # Environment for the legacy solver (not necessary if we use a Jax solver)
-├── model/
-│   └── policy.py             # JAX/Equinox MLP: (state) -> [u, xi_dot]
-├── dpc_engine/
-│   ├── dynamics.py           # Wraps apply_tesseract for a single time step
-│   └── loss_functions.py     # Tracking, Force, and Collision losses
-└── train.py                  # Main unrolling loop (BPTT)
+├── examples/
+│   ├── heat1d/
+│       ├── dynamics.py                 # Wraps apply_tesseract for a single time step
+│       └── train.py                    # Main unrolling loop (BPTT)
+│   ├── another_pde_Nd/
+│       ├── dynamics.py
+│       └── train.py                    
+├── models/
+│   └── policy.py                       # JAX model: (state, xi) -> [u, xi_dot]. Includes both centralized and decentralized versions 
+│
+├── tesseracts/                         # The "Legacy" Simulators
+│   └── solverV1/                       # For heat1d
+│       ├── tesseract_api.py            # Must define 'apply' and 'vjp'
+│       ├── solver.py                   # Our legacy C++/Julia/Python FEM code (Jax in this case) logic
+│       └── Dockerfile                  # Environment for the legacy solver (not necessary if we use a Jax solver)
+│   └── solverV2/                       # For another PDE
+│       ├── tesseract_api.py 
+│       ├── solver.py  
+│       └── Dockerfile       
+│  
+└── README                            
+
 
 
 to do:
-- look at jax-fem
-- build the fem solver out of that potentially
-- build dpc
+- other pde example
+- how to exploit tesseract for gpu 
+- use barrier function instead of bondaru penalties potentially
