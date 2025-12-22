@@ -38,7 +38,7 @@ def visualize_rollout(params, model, z_init, xi_init, z_target, dynamics, T_step
     return z_traj, xi_traj, u_traj, v_traj
 
 def main():
-    n_pde, n_agents, T_steps = 100, 4, 300
+    n_pde, n_agents, T_steps = 100, 5, 300
     solver_ts = Tesseract.from_image("solver_v1")
     
     with solver_ts:
@@ -113,8 +113,8 @@ def main():
             ax4.legend(loc='right')
             
         plt.tight_layout()
-        plt.savefig('visualization_results_dpc.png')
-        print("Saved updated visualization to visualization_results_dpc.png")
+        plt.savefig('centralized_visualization.png')
+        print("Saved updated visualization to centralized_visualization.png")
 
 if __name__ == "__main__":
     main()

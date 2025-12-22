@@ -27,3 +27,4 @@ to do:
 - other pde example
 - how to exploit tesseract for gpu 
 - use barrier function instead of bondaru penalties potentially
+- vedi se per fkpp siamo in bolla lato bc
