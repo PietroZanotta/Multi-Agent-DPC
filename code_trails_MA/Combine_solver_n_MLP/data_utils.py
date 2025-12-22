@@ -23,16 +23,16 @@ def generate_grf(key, n_points=100, length_scale=0.2, sigma=1.0):
     Generates a smooth Gaussian Random Field on [0, 1] with zero boundary conditions.
     Running on CPU to avoid Metal/GPU issues with Cholesky.
     """
-    with jax.default_device(jax.devices("cpu")[0]):
-        x_grid = jnp.linspace(0, 1, n_points)
-        
-        # 1. Compute Covariance Matrix
-        K = rbf_kernel(x_grid, x_grid, length_scale, sigma) + jnp.eye(n_points) * 1e-4
-        
-        # 2. Sample from Multivariate Normal samples ~ N(0, K)
-        L = jnp.linalg.cholesky(K)
-        z = jax.random.normal(key, shape=(n_points,))
-        f_sample = L @ z
+    # with jax.default_device(jax.devices("cpu")[0]):
+    x_grid = jnp.linspace(0, 1, n_points)
+    
+    # 1. Compute Covariance Matrix
+    K = rbf_kernel(x_grid, x_grid, length_scale, sigma) + jnp.eye(n_points) * 1e-4
+    
+    # 2. Sample from Multivariate Normal samples ~ N(0, K)
+    L = jnp.linalg.cholesky(K)
+    z = jax.random.normal(key, shape=(n_points,))
+    f_sample = L @ z
     
     # 3. Apply Bridge Correction to enforce f(0) = 0 and f(1) = 0
     f_0 = f_sample[0]
@@ -44,7 +44,7 @@ def generate_grf(key, n_points=100, length_scale=0.2, sigma=1.0):
     return x_grid, field
 
 if __name__ == "__main__":
-    # Test block to visualize if run directly
+    # Test block to visualize if runs directly
     import matplotlib.pyplot as plt
     
     print("Generating GRF samples...")
