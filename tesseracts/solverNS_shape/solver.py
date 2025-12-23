@@ -22,15 +22,15 @@ jax.config.update("jax_enable_x64", True)
 N = 128  # Grid resolution (confirmed from PhiFlow code)
 L = 2.0 * jnp.pi  # Domain size
 dx = L / N
-nu = 0.0  # NO viscosity (only numerical diffusion from advection)
+nu = 0.01  # Stronger viscosity
+fixed_dt = 0.01  # Increased for speed, stabilized by filtering
 sigma = 0.3  # Gaussian actuator width
-fixed_dt = 0.01  # Large timestep from PhiFlow
 drag = 0.0
 
 # Multi-scale initialization parameters (from PhiFlow RandomSmoke)
-V_SCALE_BASE = 1.0  # Base velocity scale
-V_FALLOFF = 0.9  # Power spectrum falloff
-BUOYANCY_STRENGTH = 0.5  # Upward force from density
+V_SCALE_BASE = 0.5  # Reduced from 1.0 to keep CFL safe
+V_FALLOFF = 0.8  # Faster falloff for smoother initial flow
+BUOYANCY_STRENGTH = 0.2  # Reduced buoyancy to prevent runaway acceleration
 use_buoyancy = True  # Enable buoyancy-driven flow
 
 # Grid coordinates
@@ -51,13 +51,19 @@ K_SQ_safe = jnp.where(K_SQ == 0.0, 1.0, K_SQ)
 # Linear operator: ν∇² - drag
 LINEAR_TERM = -nu * K_SQ - drag
 
-kappa = 0  # No density diffusion (pure advection for sharp filaments)
+kappa = 0.005  # Added density diffusion for stability
 
 # 2/3 dealiasing filter
 kx_max = 1.0 / (2.0 * dx)
 ky_max = 1.0 / (2.0 * dx)
 DEALIAS = ((jnp.abs(KX) < (2.0/3.0) * kx_max) & 
            (jnp.abs(KY) < (2.0/3.0) * ky_max)).astype(jnp.float64)
+
+# Exponential spectral filter to keep it smooth
+# exp(-alpha * (k / k_max)^order)
+k_mag = jnp.sqrt(KX**2 + KY**2)
+k_max_filter = jnp.max(k_mag)
+FILTER = jnp.exp(-36.0 * (k_mag / k_max_filter)**10)
 
 
 # =============================================================================
@@ -297,67 +303,71 @@ def advect_density_step(rho, omega_hat):
 
     rho_hat = jfft.rfft2(rho)
     adv0_hat = advection_hat_from_rho(rho)
+    
+    # Predictor step with clipping
     rho_tilde = jfft.irfft2(rho_hat + dt * adv0_hat).astype(rho.dtype)
+    rho_tilde = jnp.clip(rho_tilde, -1.0, 5.0) 
+    
     adv1_hat = advection_hat_from_rho(rho_tilde)
     adv_hat = 0.5 * (adv0_hat + adv1_hat)
 
+    # Use combined Filter + Dealiasing
+    combined_filter = DEALIAS * FILTER
+    
     diffusion_lhs = jnp.asarray(1.0 + dt * kappa * K_SQ, dtype=rho_hat.dtype)
-    rho_hat_new = (rho_hat + dt * adv_hat) / diffusion_lhs
-    return jfft.irfft2(rho_hat_new).astype(rho.dtype)
+    rho_hat_new = combined_filter * (rho_hat + dt * adv_hat) / diffusion_lhs
+    
+    rho_new = jfft.irfft2(rho_hat_new).astype(rho.dtype)
+    return jnp.clip(rho_new, -1.0, 5.0)
 
 
 @jit
 def full_step(omega_hat, rho, xi, u, v):
     """
     Full time step: vorticity + density + actuators.
-    
-    PhiFlow order:
-    1. Update vorticity/velocity (with actuators)
-    2. Add buoyancy to velocity before recomputing vorticity
-    3. Advect density
     """
     dt = fixed_dt
     
-    # Get current velocity
+    # Update density first (using current velocity)
+    # This helps decoupling the feedback loop slightly
+    rho_new = advect_density_step(rho, omega_hat)
+    
+    # Get current velocity for advection
     vx, vy = vorticity_to_velocity(omega_hat)
     
-    # Compute advection
+    # Compute advection: -(v·∇)ω
     grad_omega_x, grad_omega_y = spectral_gradient(omega_hat)
     advection = -(vx * grad_omega_x + vy * grad_omega_y)
     advection_hat = jfft.rfft2(advection)
     advection_hat = DEALIAS * advection_hat
     
-    # Compute forcing curl
+    # Compute forcing curl: (∇×f)_z
     fx, fy = forcing_fn(xi, u)
     curl_f_hat = spectral_curl_z(fx, fy)
     curl_f_hat = DEALIAS * curl_f_hat
     
-    # Add buoyancy to velocity (PhiFlow method)
+    # Compute buoyancy force contribution: rot([0, B*rho]) = B * d(rho)/dx
     if use_buoyancy:
-        vy_buoyant = vy + BUOYANCY_STRENGTH * rho * dt
-        # Recompute vorticity from buoyant velocity
-        vx_hat = jfft.rfft2(vx)
-        vy_buoyant_hat = jfft.rfft2(vy_buoyant)
+        rho_hat = jfft.rfft2(rho)
         two_pi_i = 2.0 * jnp.pi * 1j
-        buoyancy_vorticity_hat = two_pi_i * (KX * vy_buoyant_hat - KY * vx_hat)
-        buoyancy_contribution = buoyancy_vorticity_hat - omega_hat
+        # Force is B * rho * j, curl is B * d(rho)/dx
+        buoyancy_hat = BUOYANCY_STRENGTH * (two_pi_i * KX * rho_hat)
+        buoyancy_hat = DEALIAS * buoyancy_hat
     else:
-        buoyancy_contribution = 0.0
+        buoyancy_hat = 0.0
     
     # Explicit terms
-    explicit_terms = advection_hat + curl_f_hat + buoyancy_contribution
+    explicit_terms = advection_hat + curl_f_hat + buoyancy_hat
     
-    # Semi-implicit update
+    # Semi-implicit update (CN for viscosity/drag)
     lhs_coeff = 1.0 - 0.5 * dt * LINEAR_TERM
+    combined_filter = DEALIAS * FILTER
     rhs = (1.0 + 0.5 * dt * LINEAR_TERM) * omega_hat + dt * explicit_terms
-    omega_hat_new = rhs / lhs_coeff
+    omega_hat_new = combined_filter * (rhs / lhs_coeff)
     
     # Update actuator positions
     xi_new = xi + dt * v
     xi_new = xi_new % L
-    
-    # Advect density
-    rho_new = advect_density_step(rho, omega_hat_new)
     
     return omega_hat_new, rho_new, xi_new
 

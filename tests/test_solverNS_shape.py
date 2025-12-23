@@ -70,8 +70,8 @@ def generate_hybrid_init(key, grid_n, domain_l, num_blobs=15):
     
     # Randomize Blob Parameters
     centers = jax.random.uniform(key_pos, (num_blobs, 2), minval=0.1*domain_l, maxval=0.9*domain_l)
-    # sigmas = jax.random.uniform(key_sigma, (num_blobs,), minval=domain_l/20.0, maxval=domain_l/10.0)
-    sigmas = jnp.full(num_blobs, 0.04)
+    sigmas = jax.random.uniform(key_sigma, (num_blobs,), minval=domain_l/20.0, maxval=domain_l/10.0)
+    # sigmas = jnp.full(num_blobs, 0.04)
     amplitudes = jax.random.uniform(key_amp, (num_blobs,), minval=0.5, maxval=1.0)
 
     # Vectorized Gaussian calculation
@@ -91,7 +91,7 @@ def main():
     with solver_ts:
         # Simulation Parameters
         dt = fixed_dt
-        T_sim = 64
+        T_sim = 200
         M = 4 
         
         key_init = jax.random.PRNGKey(101)
