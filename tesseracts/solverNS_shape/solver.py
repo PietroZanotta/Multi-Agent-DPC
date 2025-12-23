@@ -2,12 +2,12 @@
 2D Incompressible Navier-Stokes Solver with Gaussian Control Forcing
 
 Spectral method using vorticity-streamfunction formulation.
-PHIFLOW MULTI-SCALE VERSION - Reproduces dramatic turbulent mixing
+Structure mirrors the 1D diffusion solver pattern.
 
 Equations:
     ∂ω/∂t = -(v·∇)ω + ν∇²ω + (∇×f)_z
     ∇·v = 0  (automatic via streamfunction)
-    ∂ρ/∂t = -(v·∇)ρ + buoyancy  (passive scalar with optional buoyancy)
+    ∂ρ/∂t = -(v·∇)ρ  (passive scalar)
 """
 
 import jax
@@ -17,21 +17,15 @@ import jax.numpy.fft as jfft
 
 jax.config.update("jax_enable_x64", True)
 # =============================================================================
-# Configuration - PHIFLOW PARAMETERS
+# Configuration
 # =============================================================================
-N = 128  # Grid resolution (confirmed from PhiFlow code)
-L = 2.0 * jnp.pi  # Domain size
+N = 128
+L = 2.0 * jnp.pi
 dx = L / N
-nu = 0.01  # Stronger viscosity
-fixed_dt = 0.01  # Increased for speed, stabilized by filtering
-sigma = 0.3  # Gaussian actuator width
+nu = 0.001
+sigma = 0.3
+fixed_dt = 0.01
 drag = 0.0
-
-# Multi-scale initialization parameters (from PhiFlow RandomSmoke)
-V_SCALE_BASE = 0.5  # Reduced from 1.0 to keep CFL safe
-V_FALLOFF = 0.8  # Faster falloff for smoother initial flow
-BUOYANCY_STRENGTH = 0.2  # Reduced buoyancy to prevent runaway acceleration
-use_buoyancy = True  # Enable buoyancy-driven flow
 
 # Grid coordinates
 x = jnp.linspace(0.0, L, N, endpoint=False)
@@ -51,110 +45,13 @@ K_SQ_safe = jnp.where(K_SQ == 0.0, 1.0, K_SQ)
 # Linear operator: ν∇² - drag
 LINEAR_TERM = -nu * K_SQ - drag
 
-kappa = 0.005  # Added density diffusion for stability
+kappa = 0.0
 
 # 2/3 dealiasing filter
 kx_max = 1.0 / (2.0 * dx)
 ky_max = 1.0 / (2.0 * dx)
 DEALIAS = ((jnp.abs(KX) < (2.0/3.0) * kx_max) & 
            (jnp.abs(KY) < (2.0/3.0) * ky_max)).astype(jnp.float64)
-
-# Exponential spectral filter to keep it smooth
-# exp(-alpha * (k / k_max)^order)
-k_mag = jnp.sqrt(KX**2 + KY**2)
-k_max_filter = jnp.max(k_mag)
-FILTER = jnp.exp(-36.0 * (k_mag / k_max_filter)**10)
-
-
-# =============================================================================
-# Multi-Scale Initialization (PhiFlow Method)
-# =============================================================================
-
-def upsample_2x(field):
-    """Upsample field by factor of 2 using linear interpolation"""
-    h, w = field.shape[0], field.shape[1]
-    
-    # Create 2x larger array
-    upsampled = jnp.zeros((h*2, w*2) + field.shape[2:], dtype=field.dtype)
-    
-    # Fill in original values at even indices
-    upsampled = upsampled.at[::2, ::2].set(field)
-    
-    # Linear interpolation in x direction
-    upsampled = upsampled.at[1::2, ::2].set((field + jnp.roll(field, -1, axis=0)) / 2)
-    
-    # Linear interpolation in y direction  
-    upsampled = upsampled.at[::2, 1::2].set((upsampled[::2, ::2] + jnp.roll(upsampled[::2, ::2], -1, axis=1)) / 2)
-    
-    # Diagonal interpolation
-    upsampled = upsampled.at[1::2, 1::2].set((upsampled[1::2, ::2] + jnp.roll(upsampled[1::2, ::2], -1, axis=1)) / 2)
-    
-    return upsampled
-
-
-def multi_scale_velocity_field(key, resolution=N, v_scale=V_SCALE_BASE, v_falloff=V_FALLOFF):
-    """
-    Multi-scale random velocity field initialization.
-    
-    This is the ACTUAL method from PhiFlow RandomSmoke class!
-    Builds velocity field from coarse to fine scales with decreasing weights.
-    """
-    # Start at 1×1 resolution
-    size = 1
-    velocity = jnp.zeros((1, 1, 2), dtype=jnp.float64)
-    
-    i = 0
-    while size < resolution:
-        # Upsample current field by 2x
-        velocity = upsample_2x(velocity)
-        size = size * 2
-        
-        # Add weighted random noise at this scale
-        key, subkey = jax.random.split(key)
-        noise = jax.random.normal(subkey, (size, size, 2), dtype=jnp.float64)
-        weight = v_scale * (v_falloff ** i)
-        velocity = velocity + noise * weight
-        
-        i += 1
-    
-    return velocity
-
-
-def multi_scale_density_field(key, resolution=N):
-    """
-    Multi-scale random density field initialization.
-    
-    From PhiFlow: combines 3 scales (1/4, 1/8, 1/16 resolution).
-    """
-    # Scale 1: 1/4 resolution, upsampled 2x
-    key, k1 = jax.random.split(key)
-    d1 = jax.random.uniform(k1, (resolution//4, resolution//4), dtype=jnp.float64)
-    d1 = upsample_2x(upsample_2x(d1))
-    
-    # Scale 2: 1/8 resolution, upsampled 3x
-    key, k2 = jax.random.split(key)
-    d2 = jax.random.uniform(k2, (resolution//8, resolution//8), dtype=jnp.float64)
-    d2 = upsample_2x(upsample_2x(upsample_2x(d2)))
-    
-    # Scale 3: 1/16 resolution, upsampled 4x
-    key, k3 = jax.random.split(key)
-    d3 = jax.random.uniform(k3, (resolution//16, resolution//16), dtype=jnp.float64)
-    d3 = upsample_2x(upsample_2x(upsample_2x(upsample_2x(d3))))
-    
-    # Combine scales
-    density = d1 + d2 + d3
-    
-    # Scale and clamp: clip(density * 0.66 - 1, 0, 1)
-    density = jnp.clip(density * 0.66 - 1.0, 0.0, 1.0)
-    
-    # Apply margin (set edges to zero)
-    margin = 16
-    density = density.at[:margin, :].set(0.0)
-    density = density.at[-margin:, :].set(0.0)
-    density = density.at[:, :margin].set(0.0)
-    density = density.at[:, -margin:].set(0.0)
-    
-    return density
 
 
 # =============================================================================
@@ -164,12 +61,12 @@ def multi_scale_density_field(key, resolution=N):
 def vorticity_to_velocity(omega_hat):
     """
     Convert vorticity to velocity via streamfunction.
-    ω = -∇²ψ  =>  ψ_hat = -ω_hat / |k|²
+    ω = -∇²ψ  =>  ψ_hat = ω_hat / |k|²
     v_x = ∂ψ/∂y, v_y = -∂ψ/∂x
     
     Returns velocity in physical space.
     """
-    psi_hat = -omega_hat / K_SQ_safe
+    psi_hat = omega_hat / K_SQ_safe
     psi_hat = jnp.where(K_SQ == 0, 0.0, psi_hat)
     
     two_pi_i = 2.0 * jnp.pi * 1j
@@ -272,6 +169,10 @@ def navier_stokes_step(omega_hat, xi, u, v):
     explicit_terms = advection_hat + curl_f_hat
     
     # 5. Semi-implicit update (Crank-Nicolson for diffusion)
+    # ω_new = ω + dt * [0.5 * L * ω + 0.5 * L * ω_new + explicit]
+    # => (1 - 0.5*dt*L) * ω_new = (1 + 0.5*dt*L) * ω + dt * explicit
+    # => ω_new = [(1 + 0.5*dt*L) * ω + dt * explicit] / (1 - 0.5*dt*L)
+    
     lhs_coeff = 1.0 - 0.5 * dt * LINEAR_TERM
     rhs = (1.0 + 0.5 * dt * LINEAR_TERM) * omega_hat + dt * explicit_terms
     omega_hat_new = rhs / lhs_coeff
@@ -286,10 +187,8 @@ def navier_stokes_step(omega_hat, xi, u, v):
 @jit
 def advect_density_step(rho, omega_hat):
     """
-    Advect passive scalar by one time step with optional buoyancy.
+    Advect passive scalar by one time step with small diffusion.
     ∂ρ/∂t = -(v·∇)ρ + κ∇²ρ
-    
-    PhiFlow uses pure advection (κ=0) for sharp filaments.
     """
     dt = fixed_dt
     vx, vy = vorticity_to_velocity(omega_hat)
@@ -303,22 +202,13 @@ def advect_density_step(rho, omega_hat):
 
     rho_hat = jfft.rfft2(rho)
     adv0_hat = advection_hat_from_rho(rho)
-    
-    # Predictor step with clipping
     rho_tilde = jfft.irfft2(rho_hat + dt * adv0_hat).astype(rho.dtype)
-    rho_tilde = jnp.clip(rho_tilde, -1.0, 5.0) 
-    
     adv1_hat = advection_hat_from_rho(rho_tilde)
     adv_hat = 0.5 * (adv0_hat + adv1_hat)
 
-    # Use combined Filter + Dealiasing
-    combined_filter = DEALIAS * FILTER
-    
     diffusion_lhs = jnp.asarray(1.0 + dt * kappa * K_SQ, dtype=rho_hat.dtype)
-    rho_hat_new = combined_filter * (rho_hat + dt * adv_hat) / diffusion_lhs
-    
-    rho_new = jfft.irfft2(rho_hat_new).astype(rho.dtype)
-    return jnp.clip(rho_new, -1.0, 5.0)
+    rho_hat_new = (rho_hat + dt * adv_hat) / diffusion_lhs
+    return jfft.irfft2(rho_hat_new).astype(rho.dtype)
 
 
 @jit
@@ -326,49 +216,8 @@ def full_step(omega_hat, rho, xi, u, v):
     """
     Full time step: vorticity + density + actuators.
     """
-    dt = fixed_dt
-    
-    # Update density first (using current velocity)
-    # This helps decoupling the feedback loop slightly
-    rho_new = advect_density_step(rho, omega_hat)
-    
-    # Get current velocity for advection
-    vx, vy = vorticity_to_velocity(omega_hat)
-    
-    # Compute advection: -(v·∇)ω
-    grad_omega_x, grad_omega_y = spectral_gradient(omega_hat)
-    advection = -(vx * grad_omega_x + vy * grad_omega_y)
-    advection_hat = jfft.rfft2(advection)
-    advection_hat = DEALIAS * advection_hat
-    
-    # Compute forcing curl: (∇×f)_z
-    fx, fy = forcing_fn(xi, u)
-    curl_f_hat = spectral_curl_z(fx, fy)
-    curl_f_hat = DEALIAS * curl_f_hat
-    
-    # Compute buoyancy force contribution: rot([0, B*rho]) = B * d(rho)/dx
-    if use_buoyancy:
-        rho_hat = jfft.rfft2(rho)
-        two_pi_i = 2.0 * jnp.pi * 1j
-        # Force is B * rho * j, curl is B * d(rho)/dx
-        buoyancy_hat = BUOYANCY_STRENGTH * (two_pi_i * KX * rho_hat)
-        buoyancy_hat = DEALIAS * buoyancy_hat
-    else:
-        buoyancy_hat = 0.0
-    
-    # Explicit terms
-    explicit_terms = advection_hat + curl_f_hat + buoyancy_hat
-    
-    # Semi-implicit update (CN for viscosity/drag)
-    lhs_coeff = 1.0 - 0.5 * dt * LINEAR_TERM
-    combined_filter = DEALIAS * FILTER
-    rhs = (1.0 + 0.5 * dt * LINEAR_TERM) * omega_hat + dt * explicit_terms
-    omega_hat_new = combined_filter * (rhs / lhs_coeff)
-    
-    # Update actuator positions
-    xi_new = xi + dt * v
-    xi_new = xi_new % L
-    
+    omega_hat_new, xi_new = navier_stokes_step(omega_hat, xi, u, v)
+    rho_new = advect_density_step(rho, omega_hat_new)
     return omega_hat_new, rho_new, xi_new
 
 
@@ -380,6 +229,16 @@ def full_step(omega_hat, rho, xi, u, v):
 def solve_trajectory(omega_hat_init, rho_init, xi_init, controls_u, controls_v):
     """
     Solve the PDE trajectory given initial conditions and control sequence.
+    
+    Args:
+        omega_hat_init: Initial vorticity in Fourier space (N, N//2+1)
+        rho_init: Initial passive scalar (N, N)
+        xi_init: Initial actuator positions (M, 2)
+        controls_u: Force amplitudes over time (T, M, 2)
+        controls_v: Actuator velocities over time (T, M, 2)
+        
+    Returns:
+        trajectory: Tuple of (omega_hat, rho, xi) arrays over time
     """
     def step_fn(carry, controls):
         omega_hat, rho, xi = carry
@@ -399,29 +258,8 @@ def solve_trajectory(omega_hat_init, rho_init, xi_init, controls_u, controls_v):
 
 @jit
 def solve_pde_trajectory(z_init, xi_init, controls_u, controls_v):
-    """
-    Solve PDE with multi-scale initialization.
-    
-    Uses PhiFlow method: multi-scale random velocity field.
-    """
     key = jax.random.PRNGKey(42)
-    
-    # Randomize v_scale per scene (PhiFlow does this)
-    key, k_vel = jax.random.split(key)
-    v_scale = V_SCALE_BASE * (1.0 + (jax.random.uniform(k_vel) - 0.5) * 2.0)
-    
-    # Generate multi-scale velocity
-    key, k_vel2 = jax.random.split(key)
-    velocity_field = multi_scale_velocity_field(k_vel2, N, v_scale, V_FALLOFF)
-    
-    # Convert velocity to vorticity
-    vx = velocity_field[:, :, 0]
-    vy = velocity_field[:, :, 1]
-    vx_hat = jfft.rfft2(vx)
-    vy_hat = jfft.rfft2(vy)
-    two_pi_i = 2.0 * jnp.pi * 1j
-    omega_hat_init = two_pi_i * (KX * vy_hat - KY * vx_hat)
-    
+    omega_hat_init = random_vorticity(key, k_peak=6.0, amplitude=80.0)
     _, rho_traj, xi_traj = solve_trajectory(omega_hat_init, z_init, xi_init, controls_u, controls_v)
     return rho_traj, xi_traj
 
@@ -430,48 +268,23 @@ def solve_pde_trajectory(z_init, xi_init, controls_u, controls_v):
 # Initial Conditions
 # =============================================================================
 
-def vortex_dipoles_initial(key, num_dipoles=5, strength=12.0, separation=0.4):
-    """
-    Create coherent vortex dipoles for strong advection.
-    
-    NOTE: PhiFlow uses multi_scale_velocity_field instead!
-    This is kept for compatibility.
-    """
-    key1, key2, key3 = jax.random.split(key, 3)
-    
-    # Random positions for dipole centers
-    centers = jax.random.uniform(key1, shape=(num_dipoles, 2), minval=L*0.2, maxval=L*0.8)
-    
-    # Random orientations
-    angles = jax.random.uniform(key2, shape=(num_dipoles,), minval=0, maxval=2*jnp.pi)
-    
-    # Random strengths (with variation)
-    strengths = jax.random.uniform(key3, shape=(num_dipoles,), minval=0.7, maxval=1.3) * strength
-    
-    omega = jnp.zeros_like(xx)
-    sigma_vortex = 0.18
-    
-    for i in range(num_dipoles):
-        cx, cy = centers[i, 0], centers[i, 1]
-        angle = angles[i]
-        s = strengths[i]
-        
-        # Positive vortex
-        dx_pos = separation * jnp.cos(angle)
-        dy_pos = separation * jnp.sin(angle)
-        dist_sq_pos = (xx - (cx + dx_pos))**2 + (yy - (cy + dy_pos))**2
-        omega_pos = s * jnp.exp(-dist_sq_pos / (2.0 * sigma_vortex**2))
-        
-        # Negative vortex
-        dx_neg = -separation * jnp.cos(angle)
-        dy_neg = -separation * jnp.sin(angle)
-        dist_sq_neg = (xx - (cx + dx_neg))**2 + (yy - (cy + dy_neg))**2
-        omega_neg = -s * jnp.exp(-dist_sq_neg / (2.0 * sigma_vortex**2))
-        
-        omega = omega + omega_pos + omega_neg
-    
+def taylor_green_vorticity(k=2, amplitude=1.0):
+    """Taylor-Green vortex initial condition."""
+    omega = (2.0 * k * amplitude) * jnp.cos(k * xx) * jnp.cos(k * yy)
     return jfft.rfft2(omega)
 
+
+# def random_vorticity(key, k_peak=4.0, amplitude=1.0):
+#     """Random vorticity with energy peaked at k_peak."""
+#     k_mag = jnp.sqrt(KX**2 + KY**2)
+#     energy_spectrum = jnp.exp(jnp.float32(-0.5) * ((k_mag - jnp.float32(k_peak)) / (jnp.float32(k_peak) / jnp.float32(2.0)))**2).astype(jnp.float32)
+    
+#     key1, key2 = jax.random.split(key)
+#     phases = jax.random.uniform(key1, shape=KX.shape, minval=0, maxval=2*jnp.pi).astype(jnp.float32)
+#     amplitudes = jax.random.normal(key2, shape=KX.shape).astype(jnp.float32)
+    
+#     omega_hat = jnp.float32(amplitude) * energy_spectrum * amplitudes * jnp.exp(1j * phases).astype(jnp.complex64)
+#     return omega_hat.astype(jnp.complex64)
 
 def random_vorticity(key, k_peak=4.0, amplitude=2.0):
     """Random turbulent vorticity field."""
@@ -488,15 +301,10 @@ def random_vorticity(key, k_peak=4.0, amplitude=2.0):
     phases = jax.random.uniform(key1, shape=KX_local.shape, minval=0, maxval=2*jnp.pi)
     rand_amp = jax.random.normal(key2, shape=KX_local.shape)
     
-    omega_hat_seed = energy_spectrum * rand_amp * jnp.exp(1j * phases)
-    omega_hat_seed = omega_hat_seed.at[0, 0].set(0.0)
-
-    omega = jfft.irfft2(omega_hat_seed)
-    omega = omega - jnp.mean(omega)
-    omega = omega / (jnp.std(omega) + 1e-12)
-    omega = amplitude * omega
-    return jfft.rfft2(omega)
-
+    omega_hat = amplitude * energy_spectrum * rand_amp * jnp.exp(1j * phases)
+    omega_hat = omega_hat.at[0, 0].set(0.0)  # Zero mean
+    return omega_hat
+    
 
 def gaussian_density(center, sigma_rho=0.5, amplitude=1.0):
     """Gaussian blob for passive scalar."""
@@ -517,3 +325,107 @@ def uniform_actuator_positions(M):
                 positions.append([spacing * (i + 1), spacing * (j + 1)])
     
     return jnp.array(positions[:M])
+
+# =============================================================================
+# Diagnostics
+# =============================================================================
+
+def kinetic_energy(omega_hat):
+    """Compute total kinetic energy."""
+    vx, vy = vorticity_to_velocity(omega_hat)
+    return 0.5 * jnp.mean(vx**2 + vy**2) * L**2
+
+
+def enstrophy(omega_hat):
+    """Compute total enstrophy."""
+    omega = jfft.irfft2(omega_hat)
+    return 0.5 * jnp.mean(omega**2) * L**2
+
+
+def vorticity_field(omega_hat):
+    """Convert to physical space."""
+    return jfft.irfft2(omega_hat)
+
+
+# # =============================================================================
+# # Example Usage
+# # =============================================================================
+
+# if __name__ == "__main__":
+#     import time
+    
+#     print("=" * 60)
+#     print("2D Incompressible Navier-Stokes with Gaussian Control")
+#     print("=" * 60)
+#     print(f"Grid: {N}x{N}, Domain: [0, {L:.4f}]²")
+#     print(f"Viscosity: {nu}, dt: {fixed_dt}")
+    
+#     # Number of actuators
+#     M = 4
+    
+#     # Initial conditions
+#     omega_hat_init = taylor_green_vorticity(k=2, amplitude=1.0)
+#     rho_init = gaussian_density(center=(L/2, L/2), sigma_rho=L/6)
+#     xi_init = uniform_actuator_positions(M)
+    
+#     print(f"\nInitial KE: {kinetic_energy(omega_hat_init):.6f}")
+#     print(f"Initial Enstrophy: {enstrophy(omega_hat_init):.6f}")
+    
+#     # Control sequence (random forcing, stationary actuators)
+#     T = 100  # Number of time steps
+#     key = jax.random.PRNGKey(42)
+#     key1, key2 = jax.random.split(key)
+    
+#     controls_u = 0.5 * jax.random.normal(key1, (T, M, 2))  # Force amplitudes
+#     controls_v = jnp.zeros((T, M, 2))  # Actuators don't move
+    
+#     # Run simulation
+#     print(f"\nRunning {T} time steps...")
+    
+#     start = time.time()
+#     trajectory = solve_trajectory(omega_hat_init, rho_init, xi_init, 
+#                                    controls_u, controls_v)
+#     omega_hat_traj, rho_traj, xi_traj = trajectory
+#     jax.block_until_ready(omega_hat_traj)
+#     compile_time = time.time() - start
+    
+#     # Run again (after JIT compile)
+#     start = time.time()
+#     trajectory = solve_trajectory(omega_hat_init, rho_init, xi_init,
+#                                    controls_u, controls_v)
+#     omega_hat_traj, rho_traj, xi_traj = trajectory
+#     jax.block_until_ready(omega_hat_traj)
+#     run_time = time.time() - start
+    
+#     print(f"Compile + run time: {compile_time:.3f}s")
+#     print(f"Run time (after JIT): {run_time:.3f}s")
+#     print(f"Time per step: {run_time/T*1000:.3f}ms")
+    
+#     # Final state
+#     omega_hat_final = omega_hat_traj[-1]
+#     print(f"\nFinal KE: {kinetic_energy(omega_hat_final):.6f}")
+#     print(f"Final Enstrophy: {enstrophy(omega_hat_final):.6f}")
+    
+#     # Test gradient computation
+#     print("\n" + "=" * 60)
+#     print("Testing Differentiability")
+#     print("=" * 60)
+    
+#     def loss_fn(controls_u):
+#         """Loss: final enstrophy."""
+#         traj = solve_trajectory(omega_hat_init, rho_init, xi_init,
+#                                 controls_u, controls_v)
+#         return enstrophy(traj[0][-1])
+    
+#     grad_fn = jax.grad(loss_fn)
+    
+#     start = time.time()
+#     gradient = grad_fn(controls_u)
+#     jax.block_until_ready(gradient)
+#     grad_time = time.time() - start
+    
+#     print(f"Gradient computation time: {grad_time:.3f}s")
+#     print(f"Gradient shape: {gradient.shape}")
+#     print(f"Gradient norm: {jnp.linalg.norm(gradient):.6f}")
+#     print("\n✓ Solver is fully differentiable!")
+
