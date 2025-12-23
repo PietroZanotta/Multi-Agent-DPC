@@ -152,7 +152,7 @@ def main():
         timesteps = jnp.linspace(0, T_sim - 1, num_plots, dtype=int)
         
         fig, axes = plt.subplots(1, num_plots, figsize=(18, 3.5), constrained_layout=True)
-        fig.suptitle('Smoke Evolution (Hybrid: Multiscale Omega + Blob Rho)', fontsize=16)
+        fig.suptitle('Smoke Evolution', fontsize=16)
 
         vmin = 0.0
         vmax = 1.0
