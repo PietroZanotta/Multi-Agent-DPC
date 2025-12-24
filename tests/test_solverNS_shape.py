@@ -91,8 +91,8 @@ def main():
     with solver_ts:
         # Simulation Parameters
         dt = fixed_dt
-        T_sim = 200
-        M = 4 
+        T_sim = 100
+        M = 25
         
         key_init = jax.random.PRNGKey(101)
 
