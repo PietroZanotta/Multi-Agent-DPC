@@ -21,17 +21,21 @@ from examples.ns2D.centralized.dynamics import PDEDynamics, sample_initial_vorti
 
 class NS2DControlNet(nn.Module):
     features: Sequence[int]
-    u_max: float = 2.0
+    u_max: float = 1.5
     v_max: float = 0.5
 
     @nn.compact
     def __call__(self, z_curr, z_target, xi_curr):
         error = z_curr - z_target
-        x = error.reshape(-1)
+        x = error[..., None]
         for feat in self.features:
-            x = nn.Dense(feat)(x)
-            x = nn.tanh(x)
-        branch = x
+            x = nn.Conv(feat, kernel_size=(3, 3), padding="SAME")(x)
+            x = nn.relu(x)
+        x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2), padding="SAME")
+        x = x.reshape(-1)
+        x = nn.LayerNorm()(x)
+        branch = nn.Dense(32)(x)
+        branch = nn.tanh(branch)
 
         freqs = jnp.array([1.0, 2.0, 4.0, 8.0])
         angle = xi_curr[..., None] / (2.0 * jnp.pi) * freqs[None, None, :] * 2.0 * jnp.pi
@@ -39,7 +43,7 @@ class NS2DControlNet(nn.Module):
         encoded = encoded.reshape(xi_curr.shape[0], -1)
 
         y = encoded
-        for feat in [64, 64]:
+        for feat in [32, 32]:
             y = nn.Dense(feat)(y)
             y = nn.tanh(y)
 
@@ -56,12 +60,24 @@ class NS2DControlNet(nn.Module):
         return u, v
 
 
-n = 128
-L = 2.0 * jnp.pi
-m_agents = 64
-batch_size = 4
-epochs = 200
-t_steps = 200
+def compute_iou(z_curr, z_target, epsilon=1e-8):
+    """
+    Compute Intersection over Union for binary density fields.
+    IoU = intersection / union
+    Returns 1 - IoU as a loss (0 is perfect, 1 is worst)
+    """
+    intersection = jnp.sum(z_curr * z_target)
+    union = jnp.sum(z_curr + z_target - z_curr * z_target)
+    iou = intersection / (union + epsilon)
+    return 1.0 - iou  # Convert to loss (lower is better)
+
+
+n = 64
+L = jnp.pi
+m_agents = 25
+batch_size = 6
+epochs = 20
+t_steps = 100
 
 key = jax.random.PRNGKey(0)
 key_omega, key_data = jax.random.split(key)
@@ -77,7 +93,7 @@ z_init_all, z_target_all = jax.vmap(partial(generate_shape_pair, n=n, L=L))(
 )
 xi_init_all = jnp.tile(xi_init_single[None, ...], (total_samples, 1, 1))
 
-model = NS2DControlNet(features=(128, 128))
+model = NS2DControlNet(features=(16, 32))
 dummy_z = jnp.zeros((n, n))
 dummy_target = jnp.zeros((n, n))
 dummy_xi = xi_init_single
@@ -96,6 +112,7 @@ with solver_ts:
         def step_fn(carry, _):
             omega_curr, z_curr, xi_curr = carry
             u_action, v_action = model.apply(p, z_curr, z_target, xi_curr)
+
             omega_next, z_next, xi_next = dyn.step(
                 omega_curr, z_curr, xi_curr, u_action, v_action
             )
@@ -113,9 +130,18 @@ with solver_ts:
 
     def loss_fn(p, z_init, xi_init, z_target, dyn):
         z_traj, xi_traj, u_traj, v_traj = rollout_fn(p, z_init, xi_init, z_target, dyn)
-        track = jnp.mean((z_traj[-1] - z_target) ** 2)
+        
+        # Compute IoU loss at each timestep and sum
+        def compute_timestep_iou(z_t):
+            return compute_iou(z_t, z_target)
+        
+        iou_losses = jax.vmap(compute_timestep_iou)(z_traj)
+        track = jnp.mean(iou_losses)  # Sum over all timesteps
+        
+        # Control effort
         effort = jnp.mean(u_traj**2) + 0.1 * jnp.mean(v_traj**2)
-        return 10.0 * track + 0.001 * effort, (track, effort)
+        
+        return track + 0.001 * effort, (track, effort, iou_losses[-1])
 
     @partial(jax.jit, static_argnames="dyn")
     def train_step(p, opt_st, z_init_b, xi_init_b, z_target_b, dyn):
@@ -137,43 +163,79 @@ with solver_ts:
     for epoch in trange(epochs):
         key, subkey = jax.random.split(key)
         shuffled = jax.random.permutation(subkey, indices)
-        start = 0
-        current_idx = shuffled[start : start + batch_size]
+        
+        # FIX: Properly iterate through all batches
+        num_batches = total_samples // batch_size
+        epoch_losses = []
+        epoch_tracks = []
+        epoch_efforts = []
+        epoch_final_ious = []
+        
+        for batch_idx in range(num_batches):
+            start = batch_idx * batch_size
+            current_idx = shuffled[start : start + batch_size]
 
-        z_init_batch = z_init_all[current_idx]
-        z_target_batch = z_target_all[current_idx]
-        xi_init_batch = xi_init_all[current_idx]
+            z_init_batch = z_init_all[current_idx]
+            z_target_batch = z_target_all[current_idx]
+            xi_init_batch = xi_init_all[current_idx]
 
-        params, opt_state, loss, aux = train_step(
-            params, opt_state, z_init_batch, xi_init_batch, z_target_batch, dynamics
-        )
-        track, effort = aux
+            params, opt_state, loss, aux = train_step(
+                params, opt_state, z_init_batch, xi_init_batch, z_target_batch, dynamics
+            )
+            track, effort, final_iou = aux
+            
+            epoch_losses.append(loss)
+            epoch_tracks.append(track)
+            epoch_efforts.append(effort)
+            epoch_final_ious.append(final_iou)
+
+        # Average metrics across all batches in the epoch
+        avg_loss = jnp.mean(jnp.array(epoch_losses))
+        avg_track = jnp.mean(jnp.array(epoch_tracks))
+        avg_effort = jnp.mean(jnp.array(epoch_efforts))
+        avg_final_iou = jnp.mean(jnp.array(epoch_final_ious))
 
         if epoch % 10 == 0:
             elapsed = time.time() - start_time
             print(
-                f"Epoch {epoch:03d} | Loss {loss:.6f} | Track {track:.6f} | Effort {effort:.6f} | Time {elapsed:.1f}s"
+                f"Epoch {epoch:03d} | Loss {avg_loss:.6f} | Track {avg_track:.6f} | "
+                f"Effort {avg_effort:.6f} | Final IoU Loss {avg_final_iou:.6f} | Time {elapsed:.1f}s"
             )
-            metrics.append((epoch, loss, track, effort))
+            metrics.append((epoch, avg_loss, avg_track, avg_effort, avg_final_iou))
 
 metrics = jnp.array(metrics)
 epochs_rec = metrics[:, 0]
 
-plt.figure(figsize=(10, 4))
-plt.subplot(1, 2, 1)
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 3, 1)
 plt.plot(epochs_rec, metrics[:, 1])
 plt.yscale("log")
-plt.title("Total loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.title("Total Loss")
+plt.grid(True, alpha=0.3)
 
-plt.subplot(1, 2, 2)
-plt.plot(epochs_rec, metrics[:, 2], label="track")
+plt.subplot(1, 3, 2)
+plt.plot(epochs_rec, metrics[:, 2], label="track (IoU sum)")
 plt.plot(epochs_rec, metrics[:, 3], label="effort")
 plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Value")
 plt.legend()
+plt.title("Loss Components")
+plt.grid(True, alpha=0.3)
+
+plt.subplot(1, 3, 3)
+plt.plot(epochs_rec, metrics[:, 4])
+plt.xlabel("Epoch")
+plt.ylabel("1 - IoU")
+plt.title("Final Timestep IoU Loss")
+plt.grid(True, alpha=0.3)
+
 plt.tight_layout()
-plt.savefig("centralized_training_ns2d.png")
+plt.savefig("centralized_training_ns2d_fixed.png")
 
 import flax.serialization
-with open('centralized_params_ns2d.msgpack', 'wb') as f:
+with open('centralized_params_ns2d_fixed.msgpack', 'wb') as f:
     f.write(flax.serialization.to_bytes(params))
 print(f"Training finished in {time.time() - start_time:.2f}s. Params saved.")

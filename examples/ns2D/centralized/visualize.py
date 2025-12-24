@@ -18,17 +18,21 @@ from examples.ns2D.centralized.data_utils import generate_shape_pair, make_actua
 
 class NS2DControlNet(nn.Module):
     features: Sequence[int]
-    u_max: float = 2.0
+    u_max: float = 1.5
     v_max: float = 0.5
 
     @nn.compact
     def __call__(self, z_curr, z_target, xi_curr):
         error = z_curr - z_target
-        x = error.reshape(-1)
+        x = error[..., None]
         for feat in self.features:
-            x = nn.Dense(feat)(x)
-            x = nn.tanh(x)
-        branch = x
+            x = nn.Conv(feat, kernel_size=(3, 3), padding="SAME")(x)
+            x = nn.relu(x)
+        x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2), padding="SAME")
+        x = x.reshape(-1)
+        x = nn.LayerNorm()(x)
+        branch = nn.Dense(32)(x)
+        branch = nn.tanh(branch)
 
         freqs = jnp.array([1.0, 2.0, 4.0, 8.0])
         angle = xi_curr[..., None] / (2.0 * jnp.pi) * freqs[None, None, :] * 2.0 * jnp.pi
@@ -36,7 +40,7 @@ class NS2DControlNet(nn.Module):
         encoded = encoded.reshape(xi_curr.shape[0], -1)
 
         y = encoded
-        for feat in [64, 64]:
+        for feat in [32, 32]:
             y = nn.Dense(feat)(y)
             y = nn.tanh(y)
 
@@ -84,28 +88,28 @@ def rollout_scene(params, model, rho_init, rho_target, xi_init, dynamics, t_step
 
 
 def main():
-    n = 128
-    L = 2.0 * jnp.pi
-    m_agents = 12
-    t_steps = 100
+    n = 64
+    L = jnp.pi
+    m_agents = 25
+    t_steps = 200
 
     solver_ts = Tesseract.from_image("solver_ns_shape")
 
     with solver_ts:
         dynamics = PDEDynamics(solver_ts, use_tesseract=False)
 
-        model = NS2DControlNet(features=(128, 128))
+        model = NS2DControlNet(features=(16, 32))
         try:
-            params = load_params(model, "centralized_params_ns2d.msgpack", n, m_agents)
+            params = load_params(model, "centralized_params_ns2d_fixed.msgpack", n, m_agents)
         except FileNotFoundError:
-            print("centralized_params_ns2d.msgpack not found, using randomly initialized policy.")
+            print("centralized_params_ns2d_fixed.msgpack not found, using randomly initialized policy.")
             key = jax.random.PRNGKey(1)
             dummy_z = jnp.zeros((n, n))
             dummy_target = jnp.zeros((n, n))
             dummy_xi = make_actuator_grid(m_agents, L)
             params = model.init(key, dummy_z, dummy_target, dummy_xi)
 
-        key = jax.random.PRNGKey(1234)
+        key = jax.random.PRNGKey(64)
 
         n_scenes = 2
         n_cols = 6
