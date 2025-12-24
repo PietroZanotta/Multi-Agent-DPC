@@ -19,8 +19,8 @@ jax.config.update("jax_enable_x64", True)
 # =============================================================================
 # Configuration - PHIFLOW PARAMETERS
 # =============================================================================
-N = 128  # Grid resolution (confirmed from PhiFlow code)
-L = 2.0 * jnp.pi  # Domain size
+N = 64  # Grid resolution (confirmed from PhiFlow code)
+L = jnp.pi  # Domain size
 dx = L / N
 nu = 0.01  # Stronger viscosity
 fixed_dt = 0.01  # Increased for speed, stabilized by filtering
