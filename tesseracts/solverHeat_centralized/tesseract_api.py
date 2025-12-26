@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field, ConfigDict
 from jax.flatten_util import ravel_pytree
 from tesseract_core.runtime import Array, Differentiable, Float32, ShapeDType
 
-# Ensure local imports work correctly within the Tesseract container
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 import solver
 from models.policy import ControlNet
