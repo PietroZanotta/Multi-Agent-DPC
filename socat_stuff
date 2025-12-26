@@ -1,0 +1,36 @@
+# 1. Start the Tesseract server normally on localhost inside the container
+# 2. Use socat to bridge that port to a .sock file in a shared volume
+# 3. Create the bridge (requires socat installed: sudo apt install socat)
+tesseract-runtime serve --port 8000 & 
+socat UNIX-LISTEN:/tmp/tesseract.sock,fork,mode=777 TCP:127.0.0.1:8000
+
+# 4. kill the process on the 8000 port
+sudo fuser -k 8000/tcp
+
+
+# 1. Force-terminate the entire WSL system
+wsl --shutdown
+
+# 2. (Optional) Check that no distros are still running
+wsl --list --running
+
+# meglio ancora
+Shared Memory	< 5 ms	Zero-copy (only pointers move)
+
+
+# Kill all VS Code server instances
+
+# Kill any hidden Tesseract or Python processes
+pkill -9 python
+pkill -9 tesseract-runtime
+
+# Clean the socket and port
+sudo fuser -k 8000/tcp
+rm -f /tmp/tesseract.sock
+rm -f /dev/shm/*.npy
+
+
+#nonsocat
+# Add --shm-size to give the container access to your RAM
+tesseract-runtime serve --port 8000 
+tesseract-runtime serve --port 8000 --volume /dev/shm:/dev/shm:rw

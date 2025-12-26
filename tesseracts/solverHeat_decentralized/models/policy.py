@@ -126,8 +126,8 @@ class DecentralizedControlNet(nn.Module):
         padded_grad = jnp.pad(error_grad, (half_window, half_window), mode='edge')
 
         def get_local_obs(xi):
-            # Clamp xi to [0, 1] for safety
-            xi = jnp.clip(xi, 0.0, 1.0)
+            # Clamp xi to [0, 1] for safety. Clipping moved to the physics simulator
+            # xi = jnp.clip(xi, 0.0, 1.0)
             
             # Use stop_gradient on indices to prevent 'stepping' through pixels
             center_idx = jax.lax.stop_gradient((xi * (n_pde - 1)).astype(int)) + half_window
