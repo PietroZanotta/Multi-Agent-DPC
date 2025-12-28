@@ -1,10 +1,11 @@
+
 import sys
+from functools import partial
 from pathlib import Path
 
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
-from tesseract_core import Tesseract
 import flax.serialization
 from flax import linen as nn
 from typing import Sequence
@@ -14,11 +15,11 @@ sys.path.append(str(script_dir))
 
 from examples.ns2D.centralized.dynamics import PDEDynamics, sample_initial_vorticity
 from examples.ns2D.centralized.data_utils import generate_shape_pair, make_actuator_grid
-# from examples.ns2D.centralized.train import NS2DControlNet
+
 
 class NS2DControlNet(nn.Module):
     features: Sequence[int]
-    u_max: float = 1.5
+    u_max: float = 10.0  # Match train.py
     v_max: float = 0.5
 
     @nn.compact
@@ -57,21 +58,21 @@ class NS2DControlNet(nn.Module):
         return u, v
 
 
-def load_params(model, filepath, n=128, m_agents=12):
+def load_params(model, filepath, n=128, m_agents=12, L=jnp.pi):
     with open(filepath, "rb") as f:
         serialized = f.read()
     key = jax.random.PRNGKey(0)
     dummy_z = jnp.zeros((n, n))
     dummy_target = jnp.zeros((n, n))
-    dummy_xi = make_actuator_grid(m_agents, 2.0 * jnp.pi)
+    dummy_xi = make_actuator_grid(m_agents, L)
     init_params = model.init(key, dummy_z, dummy_target, dummy_xi)
     return flax.serialization.from_bytes(init_params, serialized)
 
 
 def rollout_scene(params, model, rho_init, rho_target, xi_init, dynamics, t_steps=100):
-    key = jax.random.PRNGKey(42)
+    key = jax.random.PRNGKey(0)
     key_omega, _ = jax.random.split(key)
-    omega_init = sample_initial_vorticity(key_omega, rho_init.shape[0])
+    omega_init = sample_initial_vorticity(key_omega, rho_init.shape[0], V_SCALE_BASE=0.1, V_FALLOFF=0.4)
 
     def step_fn(carry, _):
         omega_curr, rho_curr, xi_curr = carry
@@ -90,88 +91,134 @@ def rollout_scene(params, model, rho_init, rho_target, xi_init, dynamics, t_step
 def main():
     n = 64
     L = jnp.pi
-    m_agents = 25
-    t_steps = 200
+    m_agents = 64
+    t_steps = 200  # Match training
 
-    solver_ts = Tesseract.from_image("solver_ns_shape")
+    # Use solver directly without Tesseract
+    dynamics = PDEDynamics(solver_ts=None, use_tesseract=False)
 
-    with solver_ts:
-        dynamics = PDEDynamics(solver_ts, use_tesseract=False)
+    model = NS2DControlNet(features=(16, 32))
+    try:
+        params = load_params(model, "centralized_params_ns2d.msgpack", n, m_agents, L)
+        print("Loaded trained parameters.")
+    except FileNotFoundError:
+        print("centralized_params_ns2d.msgpack not found, using randomly initialized policy.")
+        key = jax.random.PRNGKey(1)
+        dummy_z = jnp.zeros((n, n))
+        dummy_target = jnp.zeros((n, n))
+        dummy_xi = make_actuator_grid(m_agents, L)
+        params = model.init(key, dummy_z, dummy_target, dummy_xi)
 
-        model = NS2DControlNet(features=(16, 32))
-        try:
-            params = load_params(model, "centralized_params_ns2d_fixed.msgpack", n, m_agents)
-        except FileNotFoundError:
-            print("centralized_params_ns2d_fixed.msgpack not found, using randomly initialized policy.")
-            key = jax.random.PRNGKey(1)
-            dummy_z = jnp.zeros((n, n))
-            dummy_target = jnp.zeros((n, n))
-            dummy_xi = make_actuator_grid(m_agents, L)
-            params = model.init(key, dummy_z, dummy_target, dummy_xi)
+    # Use same key sequence as train.py for identical shapes
+    key = jax.random.PRNGKey(0)
+    key_omega, key_data = jax.random.split(key)
+    
+    # Generate same shapes as train.py
+    total_samples = 1
+    data_keys = jax.random.split(key_data, total_samples)
+    z_init_all, z_target_all = jax.vmap(partial(generate_shape_pair, n=n, L=L))(
+        data_keys[:total_samples]
+    )
+    rho_init = z_init_all[0]
+    rho_target = z_target_all[0]
 
-        key = jax.random.PRNGKey(64)
+    # Debug: save init and target shapes (before creating main figure)
+    fig_debug, ax_debug = plt.subplots()
+    ax_debug.imshow(rho_init, origin='lower')
+    fig_debug.savefig("rho_init.png")
+    plt.close(fig_debug)
+    
+    fig_debug, ax_debug = plt.subplots()
+    ax_debug.imshow(rho_target, origin='lower')
+    fig_debug.savefig("rho_target.png")
+    plt.close(fig_debug)
 
-        n_scenes = 2
-        n_cols = 6
-        fig, axes = plt.subplots(n_scenes, n_cols, figsize=(4 * n_cols, 4 * n_scenes))
+    n_scenes = 1
+    n_cols = 5  # Initial, Target, t=0, t=mid, t=final
+    fig, axes = plt.subplots(n_scenes, n_cols, figsize=(3.5 * n_cols, 3.5 * n_scenes))
 
-        time_indices = jnp.linspace(0, t_steps - 1, 3, dtype=int)
+    # Time indices: start, middle, end
+    time_indices = [0, t_steps // 2, t_steps - 1]
 
-        for i in range(n_scenes):
-            key, subk = jax.random.split(key)
-            rho_init, rho_target = generate_shape_pair(subk, n=n, L=L)
-            xi_init = make_actuator_grid(m_agents, L)
+    # Collect all data first to determine global color limits
+    all_data = []
+    scene_data = []
 
-            rho_traj, xi_traj, u_traj, v_traj = rollout_scene(
-                params, model, rho_init, rho_target, xi_init, dynamics, t_steps=t_steps
-            )
+    for i in range(n_scenes):
+        xi_init = make_actuator_grid(m_agents, L)
 
-            row_axes = axes[i] if n_scenes > 1 else axes
-
-            im0 = row_axes[0].contourf(
-                jnp.linspace(0, L, n),
-                jnp.linspace(0, L, n),
-                rho_init,
-                levels=30,
-                cmap="viridis",
-            )
-            row_axes[0].set_title(f"Scene {i+1} - Initial")
-            row_axes[0].set_xlabel("x")
-            row_axes[0].set_ylabel("y")
-
-            im1 = row_axes[1].contourf(
-                jnp.linspace(0, L, n),
-                jnp.linspace(0, L, n),
-                rho_target,
-                levels=30,
-                cmap="viridis",
-            )
-            row_axes[1].set_title(f"Scene {i+1} - Target")
-            row_axes[1].set_xlabel("x")
-            row_axes[1].set_ylabel("y")
-
-            for j, t_idx in enumerate(time_indices):
-                ax = row_axes[2 + j]
-                im = ax.contourf(
-                    jnp.linspace(0, L, n),
-                    jnp.linspace(0, L, n),
-                    rho_traj[t_idx],
-                    levels=30,
-                    cmap="viridis",
-                )
-                ax.set_title(f"Scene {i+1} - t = {int(t_idx)}")
-                ax.set_xlabel("x")
-                ax.set_ylabel("y")
-
-            fig.colorbar(im0, ax=row_axes[:2], fraction=0.046, pad=0.04)
-
-        plt.tight_layout()
-        plt.savefig("ns2d_centralized_visualization.png", dpi=150)
-
-
+        rho_traj, xi_traj, u_traj, v_traj = rollout_scene(
+            params, model, rho_init, rho_target, xi_init, dynamics, t_steps=t_steps
+        )
         
+        scene_data.append({
+            'rho_init': rho_init,
+            'rho_target': rho_target,
+            'rho_traj': rho_traj,
+            'xi_traj': xi_traj,
+        })
+        
+        # Collect for global limits
+        all_data.extend([rho_init, rho_target])
+        for t_idx in time_indices:
+            all_data.append(rho_traj[t_idx])
+
+    # Compute global color limits
+    vmin = 0.0
+    vmax = max(float(jnp.max(d)) for d in all_data)
+    vmax = max(vmax, 1.0)  # Ensure at least 0-1 range
+
+    for i in range(n_scenes):
+        data = scene_data[i]
+        row_axes = axes if n_scenes == 1 else axes[i]
+
+        # Plot Initial
+        im = row_axes[0].imshow(
+            data['rho_init'], origin='lower', 
+            extent=[0, L, 0, L], cmap='viridis',
+            vmin=vmin, vmax=vmax
+        )
+        row_axes[0].set_title(f"Scene {i+1} - Initial")
+        row_axes[0].set_xlabel("x")
+        row_axes[0].set_ylabel("y")
+
+        # Plot Target
+        row_axes[1].imshow(
+            data['rho_target'], origin='lower',
+            extent=[0, L, 0, L], cmap='viridis',
+            vmin=vmin, vmax=vmax
+        )
+        row_axes[1].set_title(f"Scene {i+1} - Target")
+        row_axes[1].set_xlabel("x")
+
+        # Plot trajectory snapshots
+        for j, t_idx in enumerate(time_indices):
+            ax = row_axes[2 + j]
+            rho_t = data['rho_traj'][t_idx]
+            
+            ax.imshow(
+                rho_t, origin='lower',
+                extent=[0, L, 0, L], cmap='viridis',
+                vmin=vmin, vmax=vmax
+            )
+            ax.set_title(f"Scene {i+1} - t = {t_idx}")
+            ax.set_xlabel("x")
+            
+            # Show density stats
+            rho_sum = float(jnp.sum(rho_t))
+            ax.text(0.02, 0.98, f"sum={rho_sum:.2f}", 
+                   transform=ax.transAxes, fontsize=8,
+                   verticalalignment='top', color='white',
+                   bbox=dict(boxstyle='round', facecolor='black', alpha=0.5))
+
+    # Add colorbar with proper positioning
+    fig.subplots_adjust(right=0.88)
+    cbar_ax = fig.add_axes([0.90, 0.15, 0.02, 0.7])
+    cbar = fig.colorbar(im, cax=cbar_ax, label='Density')
+
+    plt.savefig("ns2d_centralized_visualization.png", dpi=150, bbox_inches='tight')
+    print("Saved: ns2d_centralized_visualization.png")
 
 
 if __name__ == "__main__":
     main()
-
