@@ -22,15 +22,15 @@ jax.config.update("jax_enable_x64", True)
 N = 64  # Grid resolution (confirmed from PhiFlow code)
 L = jnp.pi  # Domain size
 dx = L / N
-nu = 0.01  # Stronger viscosity
-fixed_dt = 0.01  # Increased for speed, stabilized by filtering
-sigma = 0.3  # Gaussian actuator width
+nu = 0.05  
+fixed_dt = 0.01  # Stable timestep
+sigma = 0.1  # Gaussian actuator width
 drag = 0.0
 
 # Multi-scale initialization parameters (from PhiFlow RandomSmoke)
-V_SCALE_BASE = 0.5  # Reduced from 1.0 to keep CFL safe
-V_FALLOFF = 0.8  # Faster falloff for smoother initial flow
-BUOYANCY_STRENGTH = 0.2  # Reduced buoyancy to prevent runaway acceleration
+V_SCALE_BASE = 0.1  # Reduced from 1.0 to keep CFL safe
+V_FALLOFF = 0.4  # Faster falloff for smoother initial flow
+BUOYANCY_STRENGTH = 0.05  # Reduced buoyancy to prevent runaway acceleration
 use_buoyancy = True  # Enable buoyancy-driven flow
 
 # Grid coordinates
@@ -45,13 +45,14 @@ KX, KY = jnp.meshgrid(kx, ky, indexing='ij')
 
 # Precomputed spectral operators
 two_pi = 2.0 * jnp.pi
+# two_pi = 1.0
 K_SQ = (two_pi**2) * (KX**2 + KY**2)
 K_SQ_safe = jnp.where(K_SQ == 0.0, 1.0, K_SQ)
 
 # Linear operator: ν∇² - drag
 LINEAR_TERM = -nu * K_SQ - drag
 
-kappa = 0.005  # Added density diffusion for stability
+kappa = 0.0  # Added density diffusion for stability
 
 # 2/3 dealiasing filter
 kx_max = 1.0 / (2.0 * dx)
@@ -173,6 +174,7 @@ def vorticity_to_velocity(omega_hat):
     psi_hat = jnp.where(K_SQ == 0, 0.0, psi_hat)
     
     two_pi_i = 2.0 * jnp.pi * 1j
+    # two_pi_i = 1.0 * 1j
     vx_hat = two_pi_i * KY * psi_hat
     vy_hat = -two_pi_i * KX * psi_hat
     
@@ -184,6 +186,7 @@ def vorticity_to_velocity(omega_hat):
 def spectral_gradient(f_hat):
     """Compute gradient in Fourier space, return in physical space."""
     two_pi_i = 2.0 * jnp.pi * 1j
+    # two_pi_i = 1.0 * 1j
     df_dx = jfft.irfft2(two_pi_i * KX * f_hat)
     df_dy = jfft.irfft2(two_pi_i * KY * f_hat)
     return df_dx, df_dy
@@ -194,6 +197,8 @@ def spectral_curl_z(fx, fy):
     fx_hat = jfft.rfft2(fx)
     fy_hat = jfft.rfft2(fy)
     two_pi_i = 2.0 * jnp.pi * 1j
+    # two_pi_i = 1.0 * 1j
+
     curl_z_hat = two_pi_i * (KX * fy_hat - KY * fx_hat)
     return curl_z_hat
 
@@ -350,6 +355,8 @@ def full_step(omega_hat, rho, xi, u, v):
     if use_buoyancy:
         rho_hat = jfft.rfft2(rho)
         two_pi_i = 2.0 * jnp.pi * 1j
+        # two_pi_i = 1.0 * 1j
+
         # Force is B * rho * j, curl is B * d(rho)/dx
         buoyancy_hat = BUOYANCY_STRENGTH * (two_pi_i * KX * rho_hat)
         buoyancy_hat = DEALIAS * buoyancy_hat
@@ -420,6 +427,8 @@ def solve_pde_trajectory(z_init, xi_init, controls_u, controls_v):
     vx_hat = jfft.rfft2(vx)
     vy_hat = jfft.rfft2(vy)
     two_pi_i = 2.0 * jnp.pi * 1j
+    # two_pi_i = 1.0 * 1j
+
     omega_hat_init = two_pi_i * (KX * vy_hat - KY * vx_hat)
     
     _, rho_traj, xi_traj = solve_trajectory(omega_hat_init, z_init, xi_init, controls_u, controls_v)
