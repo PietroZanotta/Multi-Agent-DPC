@@ -52,6 +52,8 @@ def generate_hybrid_init(key, grid_n, domain_l, num_blobs=15):
     KX, KY = jnp.meshgrid(kx, ky, indexing='ij')
     
     two_pi_i = 2.0 * jnp.pi * 1j
+    # two_pi_i = 1.0 * 1j
+
     omega_hat = two_pi_i * (KX * vy_hat - KY * vx_hat)
     
     # Return to real space
@@ -91,8 +93,8 @@ def main():
     with solver_ts:
         # Simulation Parameters
         dt = fixed_dt
-        T_sim = 100
-        M = 25
+        T_sim = 200
+        M = 64
         
         key_init = jax.random.PRNGKey(101)
 
@@ -108,7 +110,7 @@ def main():
         xi_init = uniform_actuator_positions(M)
         
         # 4. Control Inputs
-        u_seq = jnp.zeros((T_sim, M, 2))
+        u_seq = jnp.zeros((T_sim, M, 2)) + 2.0
         v_seq = jnp.zeros((T_sim, M, 2))
 
         # Ensure correct precision
