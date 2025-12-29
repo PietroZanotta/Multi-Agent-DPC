@@ -8,7 +8,7 @@ from tesseract_core import Tesseract
 from tesseract_jax import apply_tesseract
 
 # --- Path Configuration ---
-SOLVER_PATH = "/Users/dibakarroysarkar/Desktop/PhDThesis/Codes/tesseract_hackathon/group_git/Tesseract-Hackathon/tesseracts/solverNS_shape"
+SOLVER_PATH = "/Users/dibakarroysarkar/Desktop/PhDThesis/Codes/tesseract_hackathon/group_git/Tesseract-Hackathon/tesseracts/solverNS_shape_centralized"
 sys.path.append(SOLVER_PATH)
 
 # --- Import Domain Physics ---
@@ -88,7 +88,7 @@ def generate_hybrid_init(key, grid_n, domain_l, num_blobs=15):
 
 def main():
     # 1. Setup Solver
-    solver_ts = Tesseract.from_image("solver_ns_shape")
+    solver_ts = Tesseract.from_image("solver_ns_shape_centralized")
 
     with solver_ts:
         # Simulation Parameters
@@ -96,7 +96,7 @@ def main():
         T_sim = 200
         M = 64
         
-        key_init = jax.random.PRNGKey(101)
+        key_init = jax.random.PRNGKey(0)
 
         # 2. Generate Initial State (Hybrid)
         print(f"Initializing Hybrid Fields (N={N}, L={L:.2f})...")
