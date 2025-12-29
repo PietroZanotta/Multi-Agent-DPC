@@ -381,17 +381,32 @@ def generate_shape_pair_v2(key, n=64, L=2.0 * jnp.pi):
     mask_init = _generate_single_shape(keys[5], init_type, n, center_init, scale_init)
     mask_target = _generate_single_shape(keys[6], target_type, n, center_target, scale_target)
     
-    # Normalize mass (same as original)
-    mass_init = jnp.sum(mask_init) + 1e-12
-    mass_target = jnp.sum(mask_target) + 1e-12
+    # Ensure shapes are not empty (fallback to circle if empty)
+    init_empty = jnp.sum(mask_init) < 1.0
+    target_empty = jnp.sum(mask_target) < 1.0
     
-    # Scale to match masses
-    cond = mass_init <= mass_target
-    scale_init_factor = jnp.where(cond, 1.0, mass_target / mass_init)
-    scale_target_factor = jnp.where(cond, mass_init / mass_target, 1.0)
+    # Fallback circles if empty
+    fallback_init = _circle_mask(n, center_init, scale_init * 1.5, 1.0)
+    fallback_target = _circle_mask(n, center_target, scale_target * 1.5, 1.0)
     
-    rho_init = mask_init * scale_init_factor
-    rho_target = mask_target * scale_target_factor
+    mask_init = jnp.where(init_empty, fallback_init, mask_init)
+    mask_target = jnp.where(target_empty, fallback_target, mask_target)
+    
+    # Match masses: scale the LARGER shape down to match the smaller one
+    mass_init = jnp.sum(mask_init) + 1e-8
+    mass_target = jnp.sum(mask_target) + 1e-8
+    
+    # Scale factor: min(1, smaller_mass / larger_mass)
+    # This ensures we never scale UP (which keeps max ≤ 1)
+    scale_init = jnp.where(mass_init > mass_target, mass_target / mass_init, 1.0)
+    scale_target = jnp.where(mass_target > mass_init, mass_init / mass_target, 1.0)
+    
+    # Apply scaling but ensure min density is at least 0.5 for numerical stability
+    scale_init = jnp.maximum(scale_init, 0.5)
+    scale_target = jnp.maximum(scale_target, 0.5)
+    
+    rho_init = (mask_init * scale_init).astype(jnp.float32)
+    rho_target = (mask_target * scale_target).astype(jnp.float32)
     
     return rho_init, rho_target
 

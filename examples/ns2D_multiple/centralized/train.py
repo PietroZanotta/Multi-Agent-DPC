@@ -113,7 +113,7 @@ def compute_smooth_loss(z_curr, z_target, sigma=5.0):
 n = 64
 L = jnp.pi
 m_agents = 64
-batch_size = 1
+batch_size = 8
 epochs = 200
 t_steps = 200 
 
@@ -129,7 +129,7 @@ omega_init = sample_initial_vorticity(key_omega, n, V_SCALE_BASE=0.8, V_FALLOFF=
 # os.abort()
 xi_init_single = make_actuator_grid(m_agents, L)
 
-total_samples = 1  # Diverse shape pairs for generalization
+total_samples = 100  # Diverse shape pairs for generalization
 data_keys = jax.random.split(key_data, total_samples)
 z_init_all, z_target_all = jax.vmap(partial(generate_shape_pair_v2, n=n, L=L))(
     data_keys
