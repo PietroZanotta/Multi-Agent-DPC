@@ -23,15 +23,15 @@ jax.config.update("jax_enable_x64", True)
 N = 64  # Grid resolution (confirmed from PhiFlow code)
 L = jnp.pi  # Domain size
 dx = L / N
-nu = 0.05 
-fixed_dt = 0.01  # Increased for speed, stabilized by filtering
+nu = 0.02  # Moderate viscosity for stable turbulence
+fixed_dt = 0.01  # Time step (stabilized by filtering)
 sigma = 0.1  # Gaussian actuator width
 drag = 0.0
 
 # Multi-scale initialization parameters (from PhiFlow RandomSmoke)
-V_SCALE_BASE = 0.1  # Reduced from 1.0 to keep CFL safe
-V_FALLOFF = 0.4  # Faster falloff for smoother initial flow
-BUOYANCY_STRENGTH = 0.05  # Reduced buoyancy to prevent runaway acceleration
+V_SCALE_BASE = 0.8  # Moderate initial turbulence (stable but visible motion)
+V_FALLOFF = 0.7  # Balanced falloff for smooth flow
+BUOYANCY_STRENGTH = 0.5  # Moderate buoyancy for density-driven motion
 use_buoyancy = True  # Enable buoyancy-driven flow
 
 # Grid coordinates
