@@ -27,7 +27,7 @@ def null_policy_fn(params, z_curr, z_target, xi_curr):
 
 def rollout_scene_null(rho_init, rho_target, xi_init, dynamics, t_steps=100):
     """Unrolls the physics with zero control input."""
-    key_omega = jax.random.PRNGKey(42)
+    key_omega = jax.random.PRNGKey(0)
     n = rho_init.shape[0]
     
     # Generate the turbulent background flow
@@ -48,7 +48,7 @@ def rollout_scene_null(rho_init, rho_target, xi_init, dynamics, t_steps=100):
 
 def main():
     n, L, m_agents, t_steps = 64, jnp.pi, 25, 200
-    solver_ts = Tesseract.from_image("solver_ns_shape")
+    solver_ts = Tesseract.from_image("solver_ns_shape_centralized")
 
     with solver_ts:
         # IMPORTANT: We pass the null_policy_fn here to check natural evolution
