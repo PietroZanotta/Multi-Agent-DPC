@@ -78,6 +78,115 @@ The example script [`main.py`](main.py) demonstrates two ways to compose Tessera
    $ python main.py
    ```
 
+## Code Structure
+
+This repository implements **Differentiable Predictive Control (DPC)** for PDE systems using neural operator-based controllers. The project demonstrates how to train DeepONet controllers that command mobile actuators to control partial differential equations (heat, Fisher-KPP, Navier-Stokes) using the Tesseract framework for end-to-end differentiable pipelines.
+
+### Directory Organization
+
+```
+.
+├── examples/                    # Training experiments for different PDEs
+│   ├── heat1/                  # 1D Heat equation control
+│   │   ├── centralized/        # Global sensing controller
+│   │   └── decentralized/      # Local sensing controller
+│   ├── fkpp1d/                 # 1D Fisher-KPP reaction-diffusion
+│   │   ├── centralized/
+│   │   └── decentralized/
+│   └── ns2D*/                  # 2D Navier-Stokes variants
+│       └── centralized/
+├── tesseracts/                 # Containerized autodifferentiable solvers
+│   ├── solverHeat_centralized/
+│   ├── solverHeat_decentralized/
+│   ├── solverFKPP_centralized/
+│   ├── solverFKPP_decentralized/
+│   └── solverNS_shape*/
+├── models/                     # Shared neural architectures
+│   └── policy.py              # DeepONet-based controllers
+├── tests/                      # Unit tests for solvers
+├── buildall.sh                # Build all tesseracts
+├── run_examples.sh            # Run all 1D experiments
+└── main.py                    # Template demo (not used in experiments)
+```
+
+### Control Loop Architecture
+
+All experiments follow this pattern:
+
+1. **Policy Network** (DeepONet): Observes error field `e(x,t) = z(x,t) - z_target(x,t)` and outputs control actions `(u, v)` per actuator
+   - `u` = control intensity (forcing strength)
+   - `v` = velocity (actuator movement)
+
+2. **Actuator Forcing**: Applies Gaussian-filtered forcing `B(x,t) = Σ u_i(t) · b(x, ξ_i(t))` where `b` is a spatial kernel
+
+3. **PDE Solver**: Advances state `∂z/∂t = A(z) + B(x,t)` using numerical methods (Crank-Nicolson, operator splitting, spectral)
+
+4. **Gradient Flow**: JAX autodiff propagates gradients backward through the entire trajectory for end-to-end training
+
+### Neural Policy Structure
+
+Policies inherit a **Branch-Trunk-Fusion** architecture (DeepONet variant):
+
+- **Branch Network**: Processes error field
+  - Centralized: Full (error, ∇error) field
+  - Decentralized: Local patch around each agent
+
+- **Trunk Network**: Encodes actuator coordinates using Fourier features `[sin(kπξ), cos(kπξ)]`
+
+- **Fusion Layer**: Combines Branch + Trunk outputs → `(u, v)` control commands
+
+### Training Paradigms
+
+**Direct JAX Training** (1D problems):
+- PDE solver in pure JAX (`dynamics_dual.py`)
+- Fast JIT-compiled training
+- See `examples/heat1/centralized/train.py`
+
+**Tesseract-Based Training** (2D NS):
+- Solver wrapped as containerized service with custom VJP
+- Enables distributed deployment
+- Tesseract exposes `/apply` and `/vjp` HTTP endpoints
+- See `tesseracts/solverNS_shape/tesseract_api.py`
+
+### Key Innovations
+
+1. **Zero-shot scalability**: Train with N=8 agents, deploy with N=100 (decentralized only)
+2. **Discretization-invariant gradients**: Loss magnitude independent of agent count
+3. **Stigmergic coordination**: Agents coordinate through sensing `∂e/∂t`, not communication
+4. **End-to-end differentiability**: Gradients flow through PDE solver via Tesseract VJP
+
+### Typical Workflow
+
+```bash
+# 1. Build solvers as tesseracts
+./buildall.sh
+
+# 2. Train controller for specific PDE
+cd examples/heat1/centralized/
+python data_utils.py    # Generate GRF training data
+python train.py         # Train controller (saves trained_params.pkl)
+python visualize.py     # Plot results
+
+# 3. Or run all 1D experiments
+./run_examples.sh
+```
+
+### Centralized vs Decentralized
+
+**Centralized Controllers**:
+- Observe entire error field (200-D for 100 grid points)
+- Performance upper bound
+- Fixed agent count
+
+**Decentralized Controllers**:
+- Each agent observes 8-point local patch
+- Zero communication between agents
+- 48% fewer parameters
+- Generalizes to arbitrary agent counts
+- ~50% performance degradation vs centralized
+
+For more details, see [CLAUDE.md](CLAUDE.md) and [main.tex](main.tex) for the theoretical foundation.
+
 ## Now go and build your own!
 
 Some pointers to get you started:
