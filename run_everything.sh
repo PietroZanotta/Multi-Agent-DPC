@@ -22,8 +22,8 @@ for repo in "${repos[@]}"; do
         
         # Execute scripts in sequence. 
         # Using '&&' ensures that if one fails, the rest are skipped for this repo.
-        python3 train.py && \
-        python3 visualize.py && \
+        # python3 train.py && \
+        # python3 visualize.py && \
         python3 visualize_conference.py && \
         python3 visualize_comparison.py && \
         python3 animate.py

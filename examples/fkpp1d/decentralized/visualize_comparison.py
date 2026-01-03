@@ -105,7 +105,7 @@ def main():
     training_anchor = 20
     jax.config.update("jax_platform_name", "cpu")
     
-    output_dir = Path("figures/fkpp_decentralized")
+    output_dir = Path("figures/fkpp_decentralized_comparison")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Setup PDE State ---

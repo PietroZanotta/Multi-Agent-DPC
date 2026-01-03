@@ -24,13 +24,8 @@ dpc_project/
 
 
 to do:
-<!-- - correct the sliding behaviour, likely from numerical error in the gradient computation -->
 - nuovi esperimentini:
-    - cambia training
-    - basic zero-shot transfer: train on 10, deploy on 6, 8, 12, 15, 20  
-    - plot \hat u vs M (testing for self-normalization)
-    - plot ||B|| vs M (forcing consistency)
-    - 
     - cross pde transfer (Train on Heat equation ($\nu = 0.2$), test on Heat equation with different $\nu \in \{0.1, 0.3, 0.5\}$, then test on Fisher-KPP (if tracking target is similar))
-- clean up the code
+- conclude the overleaf and polish
+- clean up the code; polish the code
 
