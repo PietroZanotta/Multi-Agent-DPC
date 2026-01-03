@@ -69,3 +69,5 @@ CLAUDE.md
 examples_new
 examples_old_reference
 */*/*/analysis.py
+
+.pre-commit-config.yaml
