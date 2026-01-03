@@ -23,7 +23,7 @@ from data_utils import generate_grf
 # --- 1. Initialization ---
 solver_ts = Tesseract.from_image("solver_fkpp1d_centralized:latest")
 
-n_pde, n_agents, batch_size = 100, 8, 32
+n_pde, n_agents, batch_size = 100, 20, 32
 T_steps = 300
 R_safe = 0.05
 epochs = 500

@@ -27,7 +27,7 @@ def load_params(model, filepath, n_pde=100, n_agents=8):
 
 def main():
     # --- 1. Setup ---
-    n_pde, n_agents, T_steps = 100, 8, 300 
+    n_pde, n_agents, T_steps = 100, 20, 300 
     solver_ts = Tesseract.from_image("solver_fkpp1d_centralized:latest")
     
     with solver_ts:
