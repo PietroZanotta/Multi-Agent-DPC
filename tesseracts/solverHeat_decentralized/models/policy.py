@@ -86,7 +86,7 @@ class ControlNet(nn.Module):
 class DecentralizedControlNet(nn.Module):
     features: Sequence[int]
     u_max: float = 40.0
-    v_max: float = 1.0  # Max velocity in units/step
+    v_max: float = 2.0  # Max velocity in units/step
     sensor_range: float = 0.08 
     
     def setup(self):
