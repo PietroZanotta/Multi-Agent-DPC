@@ -121,7 +121,7 @@ class DecentralizedControlNet(nn.Module):
         window_size = 8 
         half_window = window_size // 2
 
-        # 2. PAD BOTH (Use 'edge' to mimic Neumann boundary conditions if that's your PDE)
+        # 2. PAD BOTH (Use 'edge' to mimic Neumann boundary conditions)
         padded_error = jnp.pad(error, (half_window, half_window), mode='edge')
         padded_grad = jnp.pad(error_grad, (half_window, half_window), mode='edge')
 

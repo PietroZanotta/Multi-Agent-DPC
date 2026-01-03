@@ -85,6 +85,7 @@ def train_model(l_weight, n_pde, n_agents, epochs, dynamics, model, optimizer):
         f.write(flax.serialization.to_bytes(params))
 
 # --- 3. Evaluation with Temporal Windowing ---
+# --- 3. Evaluation with Temporal Windowing (Updated) ---
 def run_comparison(solver_ts, n_agents_list, lambda_list, n_pde, T_steps, z_init, z_target, window_ratio=0.7):
     all_results = []
     start_idx = int(T_steps * (1.0 - window_ratio))
@@ -107,66 +108,90 @@ def run_comparison(solver_ts, n_agents_list, lambda_list, n_pde, T_steps, z_init
             
             mse = float(jnp.mean((z_traj[-1] - z_target)**2))
             u_window = u_traj[start_idx:] 
-            
-            # Total squared effort in window [cite: 120]
             window_steps = T_steps - start_idx
+            
+            # 1. Total squared effort: sum_i(u_i^2) averaged over time steps
             total_effort_sq = float(jnp.sum(u_window**2) / window_steps) 
+            
+            # 2. Total absolute effort: sum_i(|u_i|) averaged over time steps
+            total_effort_abs = float(jnp.sum(jnp.abs(u_window)) / window_steps)
             
             all_results.append({
                 "lambda": l_weight, 
                 "n_agents": n, 
                 "mse": mse, 
                 "total_effort_sq": total_effort_sq,
+                "total_effort_abs": total_effort_abs,
                 "window": f"Last {window_ratio*100:.0f}%"
             })
     return pd.DataFrame(all_results)
 
-# --- 4. Plotting ---
-def plot_conjecture_results(df, window_label):
+# --- 4. Plotting (Updated for 3 Subplots) ---
+def plot_conjecture_results_separated(df, window_label):
     plt.style.use('seaborn-v0_8-paper')
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-    
     colors = ['#2c3e50', '#2980b9', '#27ae60', '#e67e22']
+    
+    # Common helper for formatting effort axes
+    def format_effort_axis(ax):
+        ax.yaxis.set_major_formatter(ScalarFormatter())
+        ax.yaxis.get_major_formatter().set_scientific(False)
+        ax.yaxis.get_major_formatter().set_useOffset(False)
+        ax.grid(True, which="both", ls="--", alpha=0.3)
+        ax.legend()
+
+    # --- Plot 1: Tracking MSE ---
+    fig1, ax1 = plt.subplots(figsize=(6, 5))
     for i, l in enumerate(df['lambda'].unique()):
         sub = df[df['lambda'] == l]
         ax1.semilogy(sub['n_agents'], sub['mse'], marker='o', markersize=6, 
                      label=f'$\lambda_u={l}$', color=colors[i], linewidth=2)
+    
+    ax1.set_title("Zero-Shot Scalability: Tracking MSE", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("Number of Agents ($N$)", fontsize=10)
+    ax1.set_ylabel("Final $L^2$ Error", fontsize=10)
+    ax1.axvline(x=20, color='red', linestyle='--', alpha=0.5, label='Training $N$')
+    ax1.grid(True, which="both", ls="--", alpha=0.3)
+    ax1.legend()
+    fig1.tight_layout()
+    fig1.savefig(FIGURES_DIR / f"scaling_mse_{window_label.replace(' ', '_')}.pdf")
+
+    # --- Plot 2: Squared Effort ---
+    fig2, ax2 = plt.subplots(figsize=(6, 5))
+    for i, l in enumerate(df['lambda'].unique()):
+        sub = df[df['lambda'] == l]
         ax2.loglog(sub['n_agents'], sub['total_effort_sq'], marker='s', markersize=6,
                    label=f'$\lambda_u={l}$', color=colors[i], linewidth=2)
-
-    # Subplot 1: MSE
-    ax1.set_title("Zero-Shot Scalability: Tracking MSE", fontsize=13, fontweight='bold')
-    ax1.set_xlabel("Number of Agents ($N$)", fontsize=11)
-    ax1.set_ylabel("Final $L^2$ Error", fontsize=11)
-    ax1.axvline(x=20, color='red', linestyle='--', alpha=0.5, label='Training $N$')
-    ax1.legend()
-    ax1.grid(True, which="both", ls="--", alpha=0.3)
-
-    # Subplot 2: Effort Decay
-    ax2.set_title(f"Steady-State Effort ({window_label}): $\sum u_i^2 = O(1/N)$", fontsize=13, fontweight='bold')
-    ax2.set_xlabel("Number of Agents ($N$)", fontsize=11)
-    ax2.set_ylabel("Mean Window Effort ($\sum u_i^2$)", fontsize=11)
     
-    # --- Y-AXIS FORMATTING: Show 10, 20, etc. instead of scientific notation ---
-    ax2.yaxis.set_major_formatter(ScalarFormatter())
-    ax2.yaxis.get_major_formatter().set_scientific(False)
-    ax2.yaxis.get_major_formatter().set_useOffset(False)
-    # Ensure minor ticks also use plain formatting if they appear
-    ax2.yaxis.set_minor_formatter(ScalarFormatter())
-    ax2.yaxis.get_minor_formatter().set_scientific(False)
+    ax2.set_title(f"Steady-State Effort: $\sum u_i^2$", fontsize=12, fontweight='bold')
+    ax2.set_xlabel("Number of Agents ($N$)", fontsize=10)
+    ax2.set_ylabel("Mean $\sum u_i^2$", fontsize=10)
+    format_effort_axis(ax2)
+    fig2.tight_layout()
+    fig2.savefig(FIGURES_DIR / f"scaling_effort_sq_{window_label.replace(' ', '_')}.pdf")
 
-    ax2.legend()
-    ax2.grid(True, which="both", ls="--", alpha=0.3)
+    # --- Plot 3: Absolute Effort ---
+    fig3, ax3 = plt.subplots(figsize=(6, 5))
+    for i, l in enumerate(df['lambda'].unique()):
+        sub = df[df['lambda'] == l]
+        ax3.loglog(sub['n_agents'], sub['total_effort_abs'], marker='^', markersize=6,
+                   label=f'$\lambda_u={l}$', color=colors[i], linewidth=2)
     
-    plt.tight_layout()
-    plt.savefig(FIGURES_DIR / f"conjecture_scaling_{window_label.replace(' ', '_')}.pdf", dpi=300)
-    print(f"Plots saved to {FIGURES_DIR}")
+    ax3.set_title(f"Steady-State Effort: $\sum |u_i|$", fontsize=12, fontweight='bold')
+    ax3.set_xlabel("Number of Agents ($N$)", fontsize=10)
+    ax3.set_ylabel("Mean $\sum |u_i|$", fontsize=10)
+    format_effort_axis(ax3)
+    fig3.tight_layout()
+    fig3.savefig(FIGURES_DIR / f"scaling_effort_abs_{window_label.replace(' ', '_')}.pdf")
+    
+    # Close all figures to free up memory
+    plt.close('all')
+    print(f"Three separate PDFs saved to {FIGURES_DIR}")
 
 def main():
     n_pde, T_steps = 100, 300
-    lambda_list = [1e-2, 1e-1, 0.5, 1]
+    lambda_list = [5e-2, 1e-1, 0.5, 1]
     n_agents_list = [15, 20, 30, 40, 50, 60]
-    WINDOW_RATIO = 0.7 
+    WINDOW_RATIO = 0.7
 
     solver_ts = Tesseract.from_image("solver_fkpp1d_decentralized:latest")
     model = DecentralizedControlNet(features=(64, 64))
@@ -185,7 +210,7 @@ def main():
         results_df = run_comparison(solver_ts, n_agents_list, lambda_list, n_pde, T_steps, 
                                     z_init, z_target, window_ratio=WINDOW_RATIO)
         
-        plot_conjecture_results(results_df, f"Last {int(WINDOW_RATIO*100)}%")
+        plot_conjecture_results_separated(results_df, f"Last {int(WINDOW_RATIO*100)}%")
         results_df.to_csv(FIGURES_DIR / "conjecture_data_windowed.csv", index=False)
 
 if __name__ == "__main__":
