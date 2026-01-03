@@ -6,13 +6,11 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from matplotlib.patches import Circle
 import numpy as np
 from tesseract_core import Tesseract
 import sys
 import flax.serialization
 from pathlib import Path
-from functools import partial
 
 # Force CPU for visualization
 jax.config.update("jax_platform_name", "cpu")
