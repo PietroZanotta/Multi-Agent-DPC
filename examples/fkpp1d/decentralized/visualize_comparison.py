@@ -84,8 +84,8 @@ def plot_scalability_analysis(df, output_path, training_n=20):
 
     # Highlight the Training Point (Zero-Shot Boundary) [cite: 142, 145]
     ax1.axvline(x=training_n, color='#c0392b', linestyle='-', linewidth=2.5, alpha=0.6)
-    ax1.text(training_n + 0.5, ax1.get_ylim()[1] * 0.4, 'Training Boundary ($N=20$)', 
-             color='#c0392b', rotation=90, fontweight='bold', verticalalignment='top')
+    # ax1.text(training_n + 0.5, ax1.get_ylim()[1] * 0.4, 'Training Boundary ($N=20$)', 
+    #          color='#c0392b', rotation=90, fontweight='bold', verticalalignment='top')
 
     plt.title("Zero-Shot Policy Scalability & Self-Normalization Analysis", fontsize=14, pad=15)
     
