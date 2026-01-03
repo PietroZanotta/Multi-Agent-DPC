@@ -236,7 +236,7 @@ def main():
             return
         
         x_grid = jnp.linspace(0, 1, n_pde)
-        key = jax.random.PRNGKey(0)
+        key = jax.random.PRNGKey(42)
         
         print("\n▶ Generating trajectories...")
         key, k1, k2 = jax.random.split(key, 3)
@@ -263,14 +263,14 @@ def main():
         
         # Save as GIF
         print("▶ Saving GIF (this may take a minute)...")
-        gif_path = 'fkpp_dpc_animation2.gif'
+        gif_path = 'fkpp_dpc_animation.gif'
         anim.save(gif_path, writer='pillow', fps=fps)
         print(f"✓ Saved: {gif_path}")
         
         # Save as MP4 (if ffmpeg is available)
         try:
             print("▶ Saving MP4...")
-            mp4_path = 'fkpp_dpc_animation2.mp4'
+            mp4_path = 'fkpp_dpc_animation.mp4'
             anim.save(mp4_path, writer='ffmpeg', fps=fps, 
                      extra_args=['-vcodec', 'libx264', '-pix_fmt', 'yuv420p'])
             print(f"✓ Saved: {mp4_path}")

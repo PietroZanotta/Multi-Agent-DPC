@@ -25,7 +25,7 @@ for repo in "${repos[@]}"; do
         # python3 train.py && \
         # python3 visualize.py && \
         python3 visualize_conference.py && \
-        python3 visualize_comparison.py && \
+        # python3 visualize_comparison.py && \
         python3 animate.py
         
         # Capturing the exit status of the chain

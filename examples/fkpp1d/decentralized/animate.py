@@ -237,7 +237,6 @@ def main():
             return
         
         x_grid = jnp.linspace(0, 1, n_pde)
-        # SAME random seed as centralized for comparison
         key = jax.random.PRNGKey(42)
         
         print("\n▶ Generating trajectories...")
