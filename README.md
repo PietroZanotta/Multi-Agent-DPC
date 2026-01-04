@@ -212,5 +212,5 @@ There are various research directions we believe can stem from this project. Her
 - **Main Frameworks:** JAX (v0.8.1) for numerical computing; Tesseract-JAX (v0.2.2) for differentiable PDE solvers
 - **Hardware Acceleration:** CUDA backend with NVIDIA driver v581.57
 
-See our technical document for details about our experimental setup.
+See our [technical document](Multi_agent_report_2026.pdf) for details about our experimental setup.
 ---
