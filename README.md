@@ -85,14 +85,14 @@ The framework was validated on two primary physical systems:
 
 ### Performance Summary
 
-| Metric                     | Heat (Centralized) | Heat (Decentralized) | Fisher-KPP (Centralized) | Fisher-KPP (Decentralized) |
-| :------------------------- | :----------------: | :------------------: | :----------------------: | :------------------------: |
-| **Branch Input Dim**       | 200                | 40                   | 200                      | 40                         |
-| **Total Parameters**       | 21,794             | 11,298               | 21,794                   | 11,298                     |
-| **Final Tracking Loss**    | 5.2e-3             | 6.4e-3               | 7.0e-3                   | 8.3e-3                     |
-| **Scalability**            | Zero-shot          | Zero-shot            | Zero-shot                | Zero-shot                  |
-| **Communication**          | Global             | None                 | Global                   | None                       |
-| **Training Time (500 ep.)**| ~1 min             | ~1 min               | ~3 min                   | ~3 min                     |
+| Metric | Heat 1d (Centr.) | Heat 1d (Decentr.) | Heat 2d (Centr.) | Heat 2d (Decentr.) | Fisher-KPP (Centr.) | Fisher-KPP (Decentr.) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Branch Input Dim** | 200 | 40 | 1024 | 144 | 200 | 40 |
+| **Total Parameters** | 21,794 | 11,298 | 2,116,003 | 158,531 | 21,794 | 11,298 |
+| **Final Tracking Loss** | 5.2e-3 | 6.4e-3 | 7.8e-3 | 9.0e-3 | 7.0e-3 | 8.3e-3 |
+| **Scalability** | Zero-shot | Zero-shot | Zero-shot | Zero-shot | Zero-shot | Zero-shot |
+| **Communication** | Global | None | Global | None | Global | None |
+| **Training Time (500 ep.)** | ~1 min | ~1 min | ~4 min | ~3 min | ~3 min | ~3 min |
 
 ---
 
@@ -184,6 +184,13 @@ We invite you to explore further our examples. In particular we highlight the `a
 ![FKPP Animation Centralized](/examples/fkpp1d/centralized/fkpp_dpc_animation.gif)
 while the result for the **decentralized policy** is:
 ![FKPP Animation Decentralized](/examples/fkpp1d/decentralized/fkpp_decentralized_animation.gif)
+
+Similar visualizations for the 2d Heat equation are the following:
+- **Centralized policy**:
+![FKPP Animation Decentralized](/examples/heat2D/decentralized/heat2d_animation.gif)
+
+- **Decentralized policy**:
+![FKPP Animation Decentralized](/examples/heat2D/decentralized/heat2d_animation.gif)
 
 Last we highligh that the script supporting the empirical evidence underlying our self-normalization conjecture are produced running `/examples/fkpp1d/decentralized/visualize_lambda_effort.py` and `/examples/fkpp1d/decentralized/visualize_comparison.py`.
 
