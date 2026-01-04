@@ -1,8 +1,14 @@
 # Multi-Agent Differentiable Predictive Control for Zero-Shot PDE Scalability
+> "You speak for the whole planet, do you? For the common consciousness of every dewdrop, of every pebble, of even the liquid central core of the planet?"
+> 
+> "I do, and so can any portion of the planet in which the intensity of the common consciousness is great enough."
+>
+> — **Isaac Asimov**, *Foundation and Earth*
+
 
 This project introduces and experiments with a decentralized control framework for systems described by PDEs. Leveraging [Tesseract-Jax](https://github.com/pasteurlabs/tesseract-jax) to implement the PDE solver as a differentiable layer, we leverage the [Differentiable Predictive Control](https://arxiv.org/abs/2011.03699) framework to enable autonomous agents to interact with the physical field for trajectory tracking.
 
-This project was ideated and evaluated by [Pietro Zanotta](https://github.com/PietroZanotta)<sup>1</sup>, [Dibakar Roy](https://github.com/RoyDibs)<sup>1</sup> and [Honghui Zheng](https://github.com/Honghui-Zheng). 
+This project was ideated and evaluated by [Pietro Zanotta](https://github.com/PietroZanotta)<sup>1</sup>, [Dibakar Roy](https://github.com/RoyDibs)<sup>1</sup> and [Honghui Zheng](https://github.com/Honghui-Zheng) as part of the [Tesseract Hackathon 2025](https://pasteurlabs.ai/tesseract-hackathon-2025/). 
 
 Contacts:
 - Pietro Zanotta: pzanott1@jhu.edu
@@ -106,7 +112,7 @@ pip install -r requirements.txt
 ```
 If you have access to a GPU and are planning to train the policies on your device we suggest you also download `jax[cuda]`.
 
-4. build the Tesseracts of interests (in this demo only the Heat equation Tesseracts. The process is similar for the other Tesseracts):
+3. Build the Tesseracts of interests (in this demo only the Heat equation Tesseracts. The process is similar for the other Tesseracts):
 ```bash
 # Build the centralized policy Tesseract
 cd tesseracts/solverHeat_centralized && Tesseract build .
@@ -114,9 +120,34 @@ cd tesseracts/solverHeat_centralized && Tesseract build .
 # Build the decentralized policy Tesseract
 cd ../solverHeat_decentralized && Tesseract build .
 ```
+
+4. Once the differentiable physical solver has been created, we test the pretrained policies as:
+```bash
+# Test the centralize policy
+cd ../../examples/heat1d/centralized && python visualize_conference.py
+
+# Test the decentralized policy
+cd ../decentralized && python visualize_conference.py .
+```
+The result for the **centralized policy** is:
+![Heat centralized](/examples/heat1d/centralized/heat_dpc_visualization_ex2.png)
+while the **decentralized policy** result for  the same problem is:
+![Heat decentralized](/examples/heat1d/decentralized/heat_dpc_decentralized_ex2.png)
+
+We invite you to explore further our examples. In particular we highlight the `animate.py` scripts which are creating GIFs and MP4 documents (this might require you to install [FFMpegWriter](https://ffmpeg.org/)). `animate.py` produces results like the following for the Fisher-KPP equation using a **centralized policy**:
+![FKPP Animation Centralized](/examples/fkpp1d/centralized/fkpp_dpc_animation.gif)
+while the result for the **decentralized policy** is:
+![FKPP Animation Decentralized](/examples/fkpp1d/decentralized/fkpp_decentralized_animation.gif)
+
+Last we highligh that the script supporting the empirical evidence underlying our self-normalization conjecture are produced running `/examples/fkpp1d/decentralized/visualize_lambda_effort.py` and `/examples/fkpp1d/decentralized/visualize_comparison.py`.
+
 ---
 
 ## Future Work
+There are various research directions we believe can stem from this project. Here is a list of the ones we believe are the most promising:
+- Understand all the perks and the limitations of casting the policy synthesis into an operator learning paradigm. 
+- Estending our theoretical analysis to a wider class of PDEs and formally proving our serf-normalization conjecture.
+- Implementing Shared Memory strategies (e.g. `/dev/shm`) to minimize the serialization cost of communication beween the python script and the Tesseract during the training of the policy.
 
 ---
 

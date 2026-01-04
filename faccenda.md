@@ -27,5 +27,6 @@ to do:
 - finire readme
 - testare tutto, lato requirements in particolare
 - fai sezione dpc
-- fai i due algoritmo
+- fai i due algoritmi e aggiungi cit here and there
+
 
