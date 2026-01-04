@@ -159,67 +159,6 @@ class DecentralizedControlNet(nn.Module):
         # Using tanh allows agents to move both left and right
         return self.u_max * jnp.tanh(u_raw), self.v_max * jnp.tanh(v_raw)
 
-
-class NS2DControlNet(nn.Module):
-    features: Sequence[int]
-    u_max: float = 10.0
-    v_max: float = 0.5
-    L: float = jnp.pi
-
-    def trunk_net(self, xi):
-        """Processes 2D actuator coordinates with periodic encoding."""
-        freqs = jnp.array([1.0, 2.0, 4.0, 8.0])
-        angle = (xi[..., None] / self.L) * 2.0 * jnp.pi * freqs[None, None, :]
-        encoded = jnp.concatenate([jnp.sin(angle), jnp.cos(angle)], axis=-1)
-        encoded = encoded.reshape(xi.shape[0], -1) 
-        
-        for feat in [32, 32]:
-            encoded = nn.Dense(feat)(encoded)
-            encoded = nn.tanh(encoded)
-        return encoded 
-
-    def branch_net(self, x):
-        """Processes the 3-channel error/gradient field via CNN."""
-        for feat in self.features:
-            x = nn.Conv(feat, kernel_size=(3, 3), padding="SAME")(x)
-            x = nn.relu(x)
-        
-        x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2), padding="SAME")
-        x = x.reshape(-1)
-        x = nn.LayerNorm()(x)
-        x = nn.Dense(32)(x)
-        x = nn.tanh(x)
-        return x 
-
-    @nn.compact
-    def __call__(self, z_curr, z_target, xi_curr):
-        # 1. Pointwise Error Field and its Spatial Gradients
-        error = z_curr - z_target
-        grads = jnp.gradient(error) # Returns [d_error/dy, d_error/dx]
-        
-        # Stack into 3-channel input: [Error, Grad_Y, Grad_X]
-        combined_field = jnp.stack([error, grads[0], grads[1]], axis=-1)
-
-        # 2. Branch: Global Error Context (CNN)
-        branch_out = self.branch_net(combined_field)
-
-        # 3. Trunk: Spatial Agent Context (Periodic coordinates)
-        trunk_out = self.trunk_net(xi_curr)
-
-        # 4. Fusion and Control Heads
-        branch_repeated = jnp.tile(branch_out, (xi_curr.shape[0], 1))
-        h = jnp.concatenate([branch_repeated, trunk_out], axis=-1)
-        h = nn.Dense(64)(h)
-        h = nn.tanh(h)
-
-        u_raw = nn.Dense(2)(h) 
-        v_raw = nn.Dense(2)(h)
-
-        u = self.u_max * jnp.tanh(u_raw)
-        v = self.v_max * jnp.tanh(v_raw)
-        return u, v
-
-
 class Heat2DControlNet(nn.Module):
     """
     2D Heat Equation Controller (Centralized).

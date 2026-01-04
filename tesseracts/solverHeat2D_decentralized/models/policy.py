@@ -160,7 +160,6 @@ class DecentralizedControlNet(nn.Module):
         return self.u_max * jnp.tanh(u_raw), self.v_max * jnp.tanh(v_raw)
 
 
-class NS2DControlNet(nn.Module):
     features: Sequence[int]
     u_max: float = 10.0
     v_max: float = 0.5
@@ -218,7 +217,6 @@ class NS2DControlNet(nn.Module):
         u = self.u_max * jnp.tanh(u_raw)
         v = self.v_max * jnp.tanh(v_raw)
         return u, v
-
 
 class Heat2DControlNet(nn.Module):
     """

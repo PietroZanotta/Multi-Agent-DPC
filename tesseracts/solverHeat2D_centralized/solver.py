@@ -4,7 +4,7 @@ from jax import jit
 from functools import partial
 
 # Configuration
-N = 64
+N = 32
 dx = 1.0 / N
 dy = 1.0 / N
 x_grid = jnp.linspace(0, 1, N)
@@ -13,7 +13,7 @@ xx, yy = jnp.meshgrid(x_grid, y_grid, indexing='ij')
 
 nu = 0.2    # Diffusion coefficient
 sigma = 0.15  # Width of the actuator influence (slightly larger for 2D)
-fixed_dt = 0.001
+fixed_dt = 0.0005
 
 def build_implicit_matrix_1d(N, r):
     """

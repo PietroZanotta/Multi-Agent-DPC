@@ -9,22 +9,43 @@ from functools import partial
 import matplotlib.pyplot as plt
 from tqdm import trange
 import flax.serialization
+import argparse
 
 script_dir = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.append(str(script_dir))
 
 from dynamics_dual import PDEDynamics
 from models.policy import DecentralizedHeat2DControlNet
-from data_utils import generate_grf_2d
+from data_utils import get_training_data
+
+# --- Parse Arguments ---
+parser = argparse.ArgumentParser(description='Train 2D Heat Decentralized Controller')
+parser.add_argument('--test', action='store_true', help='Quick test mode (1 sample, 10 epochs)')
+args = parser.parse_args()
 
 # --- Configuration ---
 solver_ts = Tesseract.from_image("solver_heat2d_decentralized:latest")
-n_grid = 64
+n_grid = 32  # Default 32×32 grid (faster training)
 n_agents = 16  # 4×4 grid of agents
-batch_size = 16  # Smaller batch due to 2D memory
-T_steps = 300
+
+# Test mode: quick verification
+if args.test:
+    print("=" * 50)
+    print("RUNNING IN TEST MODE (DECENTRALIZED)")
+    print("=" * 50)
+    n_samples = 1
+    batch_size = 1
+    T_steps = 100  # Shorter horizon
+    epochs = 10
+    print(f"Config: {n_samples} sample, {epochs} epochs, T={T_steps} steps")
+else:
+    n_samples = 5000
+    batch_size = 16
+    T_steps = 300
+    epochs = 500
+    print(f"Config: {n_samples} samples, {epochs} epochs, T={T_steps} steps")
+
 R_safe = 0.08  # Collision radius in 2D
-epochs = 500
 
 model = DecentralizedHeat2DControlNet(features=(16, 32))
 key = jax.random.PRNGKey(0)
@@ -91,25 +112,25 @@ with solver_ts:
     dynamics = PDEDynamics(solver_ts, policy_apply_fn=model.apply,
                            use_tesseract=False)
 
-    print("Generating 2D dataset...")
-    print("This may take several minutes due to eigendecomposition...")
-    all_keys = jax.random.split(key, 5000)
+    # Load or generate dataset
+    print("Loading/Generating 2D dataset...")
+    z_init_all, z_target_all, n_grid_actual = get_training_data(
+        n_samples=n_samples,
+        n_grid=n_grid,
+        dataset_dir='../data'
+    )
 
-    # Generate data
-    z_init_list, z_target_list = [], []
-    for i, k in enumerate(all_keys):
-        if i % 500 == 0:
-            print(f"  Generated {i}/5000...")
-        k1, k2 = jax.random.split(k)
-        _, _, z_i = generate_grf_2d(k1, n_points=n_grid, length_scale=0.25)
-        _, _, z_t = generate_grf_2d(k2, n_points=n_grid, length_scale=0.4)
-        z_init_list.append(z_i)
-        z_target_list.append(z_t)
+    # Update n_grid if it changed during loading
+    if n_grid_actual != n_grid:
+        n_grid = n_grid_actual
+        print(f"Using n_grid={n_grid} from loaded dataset")
 
-    z_init_all = jnp.stack(z_init_list)
-    z_target_all = jnp.stack(z_target_list)
+        # Re-initialize model with correct grid size
+        dummy_z = jnp.zeros((n_grid, n_grid))
+        params = model.init(key, dummy_z, dummy_z, dummy_xi)
+        opt_state = optimizer.init(params)
 
-    print("Dataset generation complete!")
+    print(f"Dataset ready: {z_init_all.shape}")
 
     # Initialize agents in grid pattern
     n_side = int(jnp.sqrt(n_agents))
@@ -129,7 +150,7 @@ with solver_ts:
     print("\nStarting training...")
     for epoch in trange(epochs):
         key, subkey = jax.random.split(key)
-        idx = jax.random.randint(subkey, (batch_size,), 0, 5000)
+        idx = jax.random.randint(subkey, (batch_size,), 0, n_samples)
         z_init_b, z_target_b = z_init_all[idx], z_target_all[idx]
 
         params, opt_state, loss, aux = train_step(
