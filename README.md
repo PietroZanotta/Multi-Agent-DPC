@@ -45,7 +45,7 @@ This research explores the intersection of Differentiable Programming, Operator 
 
 ### Problem Statement
 
-The control objective is to find an optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}_{track}(z, z_{ref})$, a term $\mathcal{L}_{force}(u)$ discouraging large energy consumption, and $\mathcal{L}_{coll}(\xi)$ to prevent collision between the actuators:
+The control objective is to find an optimal control sequence $U(t) = \lbrace u_i(t) \rbrace_{i=1}^N$ and velocity sequence $V(t) = \lbrace v_i(t) \rbrace_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}\_{track}(z, z_{ref})$, a term $\mathcal{L}\_{force}(u)$ discouraging large energy consumption, and $\mathcal{L}\_{coll}(\xi)$ to prevent collision between the actuators:
 
 $$\min_{U,V} \mathcal{J} = \mathbb{E}_{z_0 \sim \mathcal{D}} \left[ \int_{0}^{T} \left( \mathcal{L}_{track}(z, z_{ref}) + \lambda_u \mathcal{L}_{force}(u) + \lambda_c \mathcal{L}_{coll}(\xi) \right) dt \right]$$
 
