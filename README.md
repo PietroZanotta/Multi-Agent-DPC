@@ -12,7 +12,7 @@ This project was ideated and evaluated by [Pietro Zanotta](https://github.com/Pi
 
 Contacts:
 - Pietro Zanotta: pzanott1@jhu.edu
-- Dibakar Roy: droysar1@jh.edu
+- Dibakar Roy Sarkar: droysar1@jh.edu
 - Honghui Zheng: hzheng39@jh.edu
 
 <sup>1</sup>: shared first authorship
