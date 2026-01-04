@@ -44,21 +44,28 @@ For a more rigorous discussion about all the above points we suggest reading thr
 This research explores the intersection of Differentiable Programming, Operator Learning, and Swarm Intelligence. We demonstrate that treating a PDE solver as a neural network layer allows for the training of highly efficient, decentralized control policies. In this section we provide a brief introduction to the problem formulation. For a more rigorous discussion we refer to out [technical document](Multi_agent_report_2026.pdf).
 
 ### Problem Statement
-The control objective is to find an optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}_{track}(z, z_{ref})$ a term $\mathcal{L}_{force}(u)$ discouraging from large energy consumption and $\mathcal{L}_{coll}(\xi)$ to prevent collision between the actuators:
+
+The control objective is to find an optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}_{track}(z, z_{ref})$, a term $\mathcal{L}_{force}(u)$ discouraging large energy consumption, and $\mathcal{L}_{coll}(\xi)$ to prevent collision between the actuators:
+
 $$\min_{U,V} \mathcal{J} = \mathbb{E}_{z_0 \sim \mathcal{D}} \left[ \int_{0}^{T} \left( \mathcal{L}_{track}(z, z_{ref}) + \lambda_u \mathcal{L}_{force}(u) + \lambda_c \mathcal{L}_{coll}(\xi) \right) dt \right]$$
 
-where $\xi$ is the position of the $i$-th actuator. Our system is subject to the System Dynamics (PDE):The state field $z(x,t)$ evolves according to a non-homogeneous nonlinear partial differential equation:
+where $\xi$ is the position of the $i$-th actuator.
+
+**System Dynamics (PDE):** The state field $z(x,t)$ evolves according to a non-homogeneous nonlinear partial differential equation:
+
 $$\frac{\partial z(x,t)}{\partial t} = \mathcal{A}(z; \mu) + \mathcal{B}(x,t)$$
 
-where the total forcing $\mathcal{B}(x,t)$ is the superposition of individual actuator contributions filtered through a spatial Gaussian kernel $b(x, \xi_i)$: 
-$$\mathcal{B}(x,t) = \sum_{i=1}^{N} b(x, \xi_i(t))u_i(t).$$
+where the total forcing $\mathcal{B}(x,t)$ is the superposition of individual actuator contributions filtered through a spatial Gaussian kernel $b(x, \xi_i)$:
 
-The actuator kinematics is s.t. each mobile actuator $i \in \{1, \dots, N\}$ follows first-order integrator dynamics:
-$$\frac{d\xi_i(t)}{dt} = v_i(t), \quad \xi_i(0) = \xi_{i,0}.$$
+$$\mathcal{B}(x,t) = \sum_{i=1}^{N} b(x, \xi_i(t)) u_i(t)$$
 
-The optimization is also subject to the following physical and kinematic limits (hard constraints):
-- Control Saturation: $|u_i(t)| \le u_{max}$
-- Kinematic Limits: $|v_i(t)| \le v_{max}$ 
+**Actuator Kinematics:** Each mobile actuator $i \in \{1, \dots, N\}$ follows first-order integrator dynamics:
+
+$$\frac{d\xi_i(t)}{dt} = v_i(t), \quad \xi_i(0) = \xi_{i,0}$$
+
+**Constraints:**
+- Control Saturation: $|u_i(t)| \le u_{\max}$
+- Kinematic Limits: $|v_i(t)| \le v_{\max}$
 - Boundary Containment: $\xi_i(t) \in \Omega$
 
 ### Differentiable Predictive Control
