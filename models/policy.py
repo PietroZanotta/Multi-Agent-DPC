@@ -172,7 +172,7 @@ class Heat2DControlNet(nn.Module):
     """
     features: Sequence[int] = (16, 32)  # CNN feature channels
     u_max: float = 40.0  # Max forcing intensity
-    v_max: float = 2.0   # Max velocity
+    v_max: float = 5.0   # Max velocity (increased for better coverage)
 
     def setup(self):
         self.frequencies = jnp.array([1.0, 2.0, 4.0, 8.0])
@@ -192,17 +192,14 @@ class Heat2DControlNet(nn.Module):
         # Stack into 3-channel input: [error, ∂error/∂x, ∂error/∂y]
         x = jnp.stack([error, error_grad_x, error_grad_y], axis=-1)  # (N, N, 3)
 
-        # Convolutional layers
+        # Convolutional layers (NO POOLING - preserves spatial resolution)
         for feat in self.features:
             x = nn.Conv(feat, kernel_size=(3, 3), padding='SAME')(x)
             x = nn.relu(x)
 
-        # Pooling to reduce spatial dimension
-        x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2), padding='SAME')
-
-        # Flatten and normalize
+        # Flatten and normalize (analogous to decentralized)
         x = x.reshape(-1)
-        x = nn.LayerNorm()(x)
+        x = x / (jnp.linalg.norm(x) + 1.0)  # L2 normalization like decentralized
         x = nn.Dense(64)(x)
         x = nn.tanh(x)
 
@@ -292,7 +289,7 @@ class DecentralizedHeat2DControlNet(nn.Module):
     """
     features: Sequence[int] = (16, 32)
     u_max: float = 40.0
-    v_max: float = 2.0
+    v_max: float = 5.0  # Max velocity (increased for better coverage)
     patch_size: int = 12  # Local window size (12×12 patch)
 
     def setup(self):

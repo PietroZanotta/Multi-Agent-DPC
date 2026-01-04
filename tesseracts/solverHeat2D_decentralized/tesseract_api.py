@@ -15,10 +15,11 @@ from models.policy import DecentralizedHeat2DControlNet
 POLICY_MODEL = DecentralizedHeat2DControlNet(features=(16, 32))
 
 # Initialize once to capture the parameter structure
+# NOTE: Grid size must match training (32×32 for default, can be changed to 64×64 if needed)
 _DUMMY_PARAMS = POLICY_MODEL.init(
     jax.random.PRNGKey(0),
-    jnp.zeros((64, 64)),   # 2D State
-    jnp.zeros((64, 64)),   # 2D Target
+    jnp.zeros((32, 32)),   # 2D State (changed from 64 to match training default)
+    jnp.zeros((32, 32)),   # 2D Target (changed from 64 to match training default)
     jnp.zeros((1, 2))      # 1 Agent template with 2D position
 )
 _INITIAL_FLAT, _UNFLATTEN_FN = ravel_pytree(_DUMMY_PARAMS)

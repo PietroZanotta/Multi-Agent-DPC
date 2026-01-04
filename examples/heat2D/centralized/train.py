@@ -13,7 +13,6 @@ import argparse
 
 script_dir = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.append(str(script_dir))
-print(script_dir)
 
 from dynamics_dual import PDEDynamics
 from models.policy import Heat2DControlNet

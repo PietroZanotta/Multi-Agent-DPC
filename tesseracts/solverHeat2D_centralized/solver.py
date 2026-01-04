@@ -3,8 +3,8 @@ import jax.numpy as jnp
 from jax import jit
 from functools import partial
 
-# Configuration
-N = 32
+# Configuration (can be updated via set_grid_size())
+N = 32  # Default grid size (changed from 64 to 32 for faster training)
 dx = 1.0 / N
 dy = 1.0 / N
 x_grid = jnp.linspace(0, 1, N)
@@ -13,7 +13,24 @@ xx, yy = jnp.meshgrid(x_grid, y_grid, indexing='ij')
 
 nu = 0.2    # Diffusion coefficient
 sigma = 0.15  # Width of the actuator influence (slightly larger for 2D)
-fixed_dt = 0.0005
+fixed_dt = 0.001
+
+def set_grid_size(n_grid):
+    """
+    Reconfigure the grid resolution.
+
+    Call this before using the solver if you want a different grid size.
+
+    Args:
+        n_grid: Number of grid points per dimension (e.g., 32 or 64)
+    """
+    global N, dx, dy, x_grid, y_grid, xx, yy
+    N = n_grid
+    dx = 1.0 / N
+    dy = 1.0 / N
+    x_grid = jnp.linspace(0, 1, N)
+    y_grid = jnp.linspace(0, 1, N)
+    xx, yy = jnp.meshgrid(x_grid, y_grid, indexing='ij')
 
 def build_implicit_matrix_1d(N, r):
     """

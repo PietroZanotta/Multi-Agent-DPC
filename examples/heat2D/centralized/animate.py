@@ -1,3 +1,4 @@
+
 """
 2D Heat Equation Control - Centralized Animation
 Creates 2×2 animated visualization with uncontrolled/controlled/error fields + MSE

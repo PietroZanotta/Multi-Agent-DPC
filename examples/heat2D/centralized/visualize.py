@@ -100,7 +100,7 @@ def main():
     setup_style()
 
     # Configuration
-    n_grid = 64
+    n_grid = 32
     n_agents = 16
     T_steps = 300
 
