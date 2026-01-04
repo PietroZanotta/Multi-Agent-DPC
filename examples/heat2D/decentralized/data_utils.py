@@ -1,5 +1,8 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
+import time
+from pathlib import Path
 
 def rbf_kernel_2d(x1, x2, length_scale=0.3, sigma=1.0):
     """
@@ -19,7 +22,7 @@ def rbf_kernel_2d(x1, x2, length_scale=0.3, sigma=1.0):
     dist_sq = jnp.sum(diff**2, axis=-1)  # (N1, N2)
     return sigma**2 * jnp.exp(-0.5 * dist_sq / length_scale**2)
 
-def generate_grf_2d(key, n_points=64, length_scale=0.4, sigma=1.0):
+def generate_grf_2d(key, n_points=32, length_scale=0.4, sigma=1.0):
     """
     Generate 2D Gaussian Random Field with zero Dirichlet BCs.
 
@@ -109,6 +112,189 @@ def generate_grf_2d(key, n_points=64, length_scale=0.4, sigma=1.0):
     field = f - trend
 
     return xx, yy, field
+
+
+def load_dataset(dataset_path):
+    """
+    Load pre-generated dataset from .npz file.
+
+    Args:
+        dataset_path: Path to .npz file
+
+    Returns:
+        z_init_all: (n_samples, n_grid, n_grid) initial conditions
+        z_target_all: (n_samples, n_grid, n_grid) target conditions
+        n_grid: Grid size
+    """
+    data = np.load(dataset_path)
+    z_init_all = jnp.array(data['z_init'])
+    z_target_all = jnp.array(data['z_target'])
+    n_grid = int(data['grid_size'])
+
+    print(f"Loaded dataset from {dataset_path}")
+    print(f"  Shape: {z_init_all.shape}")
+    print(f"  Grid size: {n_grid}×{n_grid}")
+
+    return z_init_all, z_target_all, n_grid
+
+
+def generate_dataset(n_samples, n_points=32, length_scale_init=0.25,
+                     length_scale_target=0.4, seed=42, verbose=True):
+    """
+    Generate multiple GRF samples with progress reporting.
+
+    Args:
+        n_samples: Number of (init, target) pairs to generate
+        n_points: Grid resolution (default 32 for speed)
+        length_scale_init: Length scale for initial conditions
+        length_scale_target: Length scale for targets
+        seed: Random seed
+        verbose: Print progress
+
+    Returns:
+        z_init_all: (n_samples, n_points, n_points)
+        z_target_all: (n_samples, n_points, n_points)
+    """
+    if verbose:
+        print(f"Generating dataset: {n_samples} samples at {n_points}×{n_points} grid")
+
+    key = jax.random.PRNGKey(seed)
+    all_keys = jax.random.split(key, n_samples * 2)
+
+    z_init_list = []
+    z_target_list = []
+
+    start_time = time.time()
+    last_print_time = start_time
+
+    # Generate initial conditions
+    if verbose:
+        print("Generating initial conditions...")
+    for i in range(n_samples):
+        # Progress reporting every 50 samples or 5 seconds
+        if verbose:
+            current_time = time.time()
+            if i % 50 == 0 or (current_time - last_print_time) > 5.0:
+                if i > 0:
+                    elapsed = current_time - start_time
+                    time_per_sample = elapsed / i
+                    remaining = (n_samples - i) * time_per_sample
+                    print(f"  Progress: {i}/{n_samples} ({100*i/n_samples:.1f}%) | "
+                          f"Elapsed: {elapsed:.1f}s | ETA: {remaining:.1f}s")
+                    last_print_time = current_time
+                else:
+                    print(f"  Progress: {i}/{n_samples}")
+
+        _, _, z_i = generate_grf_2d(all_keys[i], n_points=n_points,
+                                     length_scale=length_scale_init)
+        z_init_list.append(z_i)
+
+    if verbose:
+        print(f"  Completed: {n_samples}/{n_samples} (100.0%)")
+
+    # Generate target conditions
+    if verbose:
+        print("Generating target conditions...")
+    target_start = time.time()
+    last_print_time = target_start
+
+    for i in range(n_samples):
+        # Progress reporting
+        if verbose:
+            current_time = time.time()
+            if i % 50 == 0 or (current_time - last_print_time) > 5.0:
+                if i > 0:
+                    elapsed = current_time - target_start
+                    time_per_sample = elapsed / i
+                    remaining = (n_samples - i) * time_per_sample
+                    print(f"  Progress: {i}/{n_samples} ({100*i/n_samples:.1f}%) | "
+                          f"Elapsed: {elapsed:.1f}s | ETA: {remaining:.1f}s")
+                    last_print_time = current_time
+                else:
+                    print(f"  Progress: {i}/{n_samples}")
+
+        _, _, z_t = generate_grf_2d(all_keys[n_samples + i], n_points=n_points,
+                                     length_scale=length_scale_target)
+        z_target_list.append(z_t)
+
+    if verbose:
+        print(f"  Completed: {n_samples}/{n_samples} (100.0%)")
+        total_time = time.time() - start_time
+        print(f"Total generation time: {total_time:.1f}s ({total_time/60:.1f}m)")
+
+    # Convert to arrays
+    z_init_all = jnp.array(z_init_list)
+    z_target_all = jnp.array(z_target_list)
+
+    return z_init_all, z_target_all
+
+
+def get_training_data(n_samples=5000, n_grid=32, dataset_dir='../data'):
+    """
+    Get training data with smart fallback logic.
+
+    Strategy:
+    1. Check for pre-generated dataset matching n_grid
+    2. If not found, generate at specified n_grid (default 32)
+    3. Return data ready for training
+
+    Args:
+        n_samples: Number of samples (used if generating)
+        n_grid: Grid resolution (32 or 64)
+        dataset_dir: Directory to look for/save datasets
+
+    Returns:
+        z_init_all: (n_samples, n_grid, n_grid)
+        z_target_all: (n_samples, n_grid, n_grid)
+        n_grid: Actual grid size used
+    """
+    dataset_path = Path(dataset_dir) / f'heat2d_dataset_{n_grid}x{n_grid}.npz'
+
+    if dataset_path.exists():
+        # Load pre-generated dataset
+        z_init_all, z_target_all, loaded_n_grid = load_dataset(dataset_path)
+
+        # Verify grid size matches
+        if loaded_n_grid != n_grid:
+            print(f"WARNING: Requested n_grid={n_grid} but loaded dataset has {loaded_n_grid}")
+            n_grid = loaded_n_grid
+
+        # Verify sample count
+        if len(z_init_all) < n_samples:
+            print(f"WARNING: Dataset has {len(z_init_all)} samples, requested {n_samples}")
+            print(f"Using all {len(z_init_all)} available samples")
+        elif len(z_init_all) > n_samples:
+            print(f"Using first {n_samples} samples from dataset")
+            z_init_all = z_init_all[:n_samples]
+            z_target_all = z_target_all[:n_samples]
+
+        return z_init_all, z_target_all, n_grid
+
+    else:
+        # Generate new dataset
+        print(f"Pre-generated dataset not found at {dataset_path}")
+        print(f"Generating {n_samples} samples at {n_grid}×{n_grid} resolution...")
+        print(f"(This will take ~{0.5*n_samples*(n_grid/32)**3:.0f} seconds)")
+        print()
+
+        z_init_all, z_target_all = generate_dataset(
+            n_samples=n_samples,
+            n_points=n_grid,
+            verbose=True
+        )
+
+        # Optionally save for future use
+        print()
+        print(f"Dataset generated successfully!")
+        print(f"To avoid regeneration, save with:")
+        print(f"  np.savez_compressed('{dataset_path}',")
+        print(f"                      z_init=z_init_all,")
+        print(f"                      z_target=z_target_all,")
+        print(f"                      grid_size={n_grid},")
+        print(f"                      n_samples={n_samples})")
+        print()
+
+        return z_init_all, z_target_all, n_grid
 
 
 if __name__ == "__main__":

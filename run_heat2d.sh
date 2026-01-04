@@ -1,12 +1,29 @@
 #!/bin/bash
 # Complete workflow for 2D Heat Equation Control Examples
 # This script builds tesseracts, trains models, and generates visualizations
+#
+# Usage:
+#   ./run_heat2d.sh          # Full training (5000 samples, 500 epochs)
+#   ./run_heat2d.sh --test   # Quick test (1 sample, 10 epochs)
 
 set -e  # Exit on error
 
-echo "========================================"
-echo "2D Heat Equation Control - Full Workflow"
-echo "========================================"
+# Parse arguments
+TEST_MODE=""
+if [[ "$1" == "--test" ]]; then
+    TEST_MODE="--test"
+    echo "========================================"
+    echo "2D Heat Equation Control - TEST MODE"
+    echo "========================================"
+    echo ""
+    echo "Running quick test (1 sample, 10 epochs)..."
+else
+    echo "========================================"
+    echo "2D Heat Equation Control - Full Workflow"
+    echo "========================================"
+    echo ""
+    echo "Running full training (5000 samples, 500 epochs)..."
+fi
 echo ""
 
 # ============================================
@@ -32,8 +49,12 @@ echo "STEP 2: Training Centralized Controller..."
 echo "--------------------------------------"
 cd examples/heat2D/centralized/
 
-echo "Starting centralized training (this may take 30-60 minutes)..."
-python train.py
+if [[ -z "$TEST_MODE" ]]; then
+    echo "Starting centralized training (this may take 30-60 minutes)..."
+else
+    echo "Starting centralized test training (~1-2 minutes)..."
+fi
+python train.py $TEST_MODE
 
 echo "✓ Centralized training complete!"
 echo "  Output: centralized_params_heat2d.msgpack"
@@ -47,8 +68,12 @@ echo "STEP 3: Training Decentralized Controller..."
 echo "--------------------------------------"
 cd ../decentralized/
 
-echo "Starting decentralized training (this may take 30-60 minutes)..."
-python train.py
+if [[ -z "$TEST_MODE" ]]; then
+    echo "Starting decentralized training (this may take 30-60 minutes)..."
+else
+    echo "Starting decentralized test training (~1-2 minutes)..."
+fi
+python train.py $TEST_MODE
 
 echo "✓ Decentralized training complete!"
 echo "  Output: decentralized_params_heat2d.msgpack"
