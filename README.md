@@ -103,7 +103,10 @@ tesseract-hackathon/
 │   ├── fkpp1d/                     # Fisher-KPP 1D reaction-diffusion examples
 │   │   ├── centralized/            # Training and visualization for global control
 │   │   └── decentralized/          # Multi-agent/local control versions
-│   └── heat1d/                     # 1D Heat Equation examples
+│   ├── heat1d/                     # 1D Heat Equation examples
+│   │   ├── centralized/            
+│   │   └── decentralized/          
+│   └── heat2D/                     # 2D Heat Equation examples   
 │       ├── centralized/
 │       └── decentralized/
 │
@@ -112,7 +115,7 @@ tesseract-hackathon/
 │
 ├── tesseracts/                     # The "Legacy" Simulator Wrappers
 │   ├── solverFKPP_.../             # Solvers specifically for FKPP problems
-│   ├── solverHeat_.../             # Solvers specifically for Heat problems
+│   ├── solverHeat_.../             # Solvers specifically for Heat problems (both 1d and 2d)
 │   │   ├── solver.py               # The underlying physics engine logic
 │   │   ├── tesseract_api.py        # Interface defining 'apply' and 'vjp' for JAX
 │   │   └── tesseract_config.yaml
@@ -155,7 +158,7 @@ cd ../solverHeat_decentralized && Tesseract build .
 ```
 
 > [!NOTE]
-> **For Mac Users:** If `Tesseract build .` doesn't work because your system already has Tesseract OCR installed (which conflicts with the Tesseract-JAX command), you need to use the full path to the tesseract binary inside your virtual environment instead:
+> **For Mac Users:** If `Tesseract build .` doesn't work because your system already has Tesseract OCR installed (which conflicts with the Tesseract-JAX command), you can use the full path to the tesseract binary inside your virtual environment instead (or use aliasing):
 > ```bash
 > cd tesseracts/solverHeat_centralized && /path/to/your/venv/bin/tesseract build .
 > ```

@@ -1,0 +1,9 @@
+# Tesseract requirements file
+
+# JAX and ML libraries
+jax[cpu]
+flax
+equinox
+
+# For CUDA support, replace jax[cpu] with:
+# jax[cuda12]
