@@ -154,6 +154,16 @@ cd tesseracts/solverHeat_centralized && Tesseract build .
 cd ../solverHeat_decentralized && Tesseract build .
 ```
 
+> [!NOTE]
+> **For Mac Users:** If `Tesseract build .` doesn't work because your system already has Tesseract OCR installed (which conflicts with the Tesseract-JAX command), you need to use the full path to the tesseract binary inside your virtual environment instead:
+> ```bash
+> cd tesseracts/solverHeat_centralized && /path/to/your/venv/bin/tesseract build .
+> ```
+> For example, if your virtual environment is named `.venv`, the command would be:
+> ```bash
+> cd tesseracts/solverHeat_centralized && ./.venv/bin/tesseract build .
+> ```
+
 4. Once the differentiable physical solver has been created, we test the pretrained policies as:
 ```bash
 # Test the centralize policy
