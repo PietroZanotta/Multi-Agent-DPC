@@ -66,7 +66,7 @@ The optimization is also subject to the following physical and kinematic limits 
 - Boundary Containment: $\xi_i(t) \in \Omega$
 
 ### Differentiable Predictive Control
-To syntesize a policy approximating the optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ we rely on DIfferentiable Predictive Control. In our framework, the control policy is parameterized by a neural operator $\mathcal{G}_{\theta}$ that maps current observations to optimal actions. During training, we perform the following steps:
+To syntesize a policy approximating the optimal control sequence $U(t) = \lbrace u_i(t) \rbrace_{i=1}^N$ and velocity sequence $V(t) = \lbrace v_i(t) \rbrace_{i=1}^N$ we rely on Differentiable Predictive Control. In our framework, the control policy is parameterized by a neural operator $\mathcal{G}\_{\theta}$ that maps current observations to optimal actions. During training, we perform the following steps:
 - **Forward Pass**: The current state $z_k$ and control actions $u_k$ are passed through a differentiable operator $\Psi$ (the PDE solver) to predict the future state $z_{k+1}$. It is relevant that such a solver is created using Tesseract, to allow differentiable simulations.
 - **Sensitivity Analysis**: By applying the chain rule through the solver, we compute exact sensitivity gradients of the future state with respect to the policy parameters $\theta$
 - **Policy Optimization**: These gradients are used to update the neural network, minimizing the total loss $\mathcal{J}$ over a trajectory of length $K$.
