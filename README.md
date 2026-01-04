@@ -26,7 +26,7 @@ Contacts:
 - **Theoretical Gradient Consistency**: We provide a mathematical foundation theorem ensuring that discrete policy gradients converge to the mean-field limit as the swarm size $N \rightarrow \infty$.
 - **Parameter Efficiency:** In our toy examples, the decentralized approach utilizes *48% fewer parameters* in the 1d cases and *76% fewer* in the 2d case than centralized benchmarks while maintaining competitive performance.
 
-For a more rigorous discussion about all the above points we suggest reading through our technical document.
+For a more rigorous discussion about all the above points we suggest reading through our [technical document](Multi_agent_report_2026.pdf).
 
 ---
 
@@ -41,7 +41,7 @@ For a more rigorous discussion about all the above points we suggest reading thr
 ---
 
 ## About this Project
-This research explores the intersection of Differentiable Programming, Operator Learning, and Swarm Intelligence. We demonstrate that treating a PDE solver as a neural network layer allows for the training of highly efficient, decentralized control policies. In this section we provide a brief introduction to the problem formulation. For a more rigorous discussion we refer to out technical document.
+This research explores the intersection of Differentiable Programming, Operator Learning, and Swarm Intelligence. We demonstrate that treating a PDE solver as a neural network layer allows for the training of highly efficient, decentralized control policies. In this section we provide a brief introduction to the problem formulation. For a more rigorous discussion we refer to out [technical document](Multi_agent_report_2026.pdf).
 
 ### Problem Statement
 The control objective is to find an optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}_{track}(z, z_{ref})$ a term $\mathcal{L}_{force}(u)$ discouraging from large energy consumption and $\mathcal{L}_{coll}(\xi)$ to prevent collision between the actuators:
@@ -73,7 +73,7 @@ To syntesize a policy approximating the optimal control sequence $U(t) = \{u_i(t
 - **Zero-Shot Scalability**: Because the policy maps the error field to actions at any spatial query point $\xi \in \Omega$, it can be deployed on arbitrary agent configurations and swarm sizes, making our policy resilient to the case of actuator failure
 - **Communication-Free Scaling**: In the decentralized scenario, because each agent shares the same parameters and "senses" the global state through the physical field, the swarm naturally coordinates its actions (stigmergy) without needing inter-agent communication
 
-Note that part of the theoretical results on Zero-Shot Scalability rely on a conjecture that we are only empirically validating. For a more rigorous discussion about all the above points we suggest reading through our technical document.
+Note that part of the theoretical results on Zero-Shot Scalability rely on a conjecture that we are only empirically validating. For a more rigorous discussion about all the above points we suggest reading through our [technical document](Multi_agent_report_2026.pdf).
 
 ---
 
@@ -212,5 +212,5 @@ There are various research directions we believe can stem from this project. Her
 - **Main Frameworks:** JAX (v0.8.1) for numerical computing; Tesseract-JAX (v0.2.2) for differentiable PDE solvers
 - **Hardware Acceleration:** CUDA backend with NVIDIA driver v581.57
 
-See our [technical document](Multi_agent_report_2026.pdf) for details about our experimental setup.
+See our [[technical document](Multi_agent_report_2026.pdf)](Multi_agent_report_2026.pdf) for details about our experimental setup.
 ---
