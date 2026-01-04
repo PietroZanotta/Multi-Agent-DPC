@@ -169,10 +169,6 @@ The following table summarizes the key differences between centralized and decen
    - **Decentralized**: Each agent sees only 12×12 local patch, smaller trunk (32-dim), stigmergic coordination
 4. **Surprising Result**: The decentralized controller achieves slightly lower final MSE (8.6×10⁻⁵ vs 1.5×10⁻⁴), demonstrating that local sensing can be sufficient for effective coordination
 
-### Training Time
-- ~30-60 minutes for 500 epochs (depending on hardware)
-- Data generation: ~10-20 minutes
-
 ## Technical Details
 
 ### ADI Method
