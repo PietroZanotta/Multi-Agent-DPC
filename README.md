@@ -44,7 +44,8 @@ For a more rigorous discussion about all the above points we suggest reading thr
 This research explores the intersection of Differentiable Programming, Operator Learning, and Swarm Intelligence. We demonstrate that treating a PDE solver as a neural network layer allows for the training of highly efficient, decentralized control policies. In this section we provide a brief introduction to the problem formulation. For a more rigorous discussion we refer to out [technical document](Multi_agent_report_2026.pdf).
 
 ### Problem Statement
-The control objective is to find an optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}_{\text{track}}(z, z_{\text{ref}})$, a term $\mathcal{L}_{\text{force}}(u)$ discouraging large energy consumption, and $\mathcal{L}_{\text{coll}}(\xi)$ to prevent collision between the actuators:
+The control objective is to find an optimal control sequence $U(t) = \lbrace u_i(t) \rbrace_{i=1}^N$ and velocity sequence $V(t) = \lbrace v_i(t) \rbrace_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}\_{\text{track}}(z, z\_{\text{ref}})$, a term $\mathcal{L}\_{\text{force}}(u)$ discouraging large energy consumption, and $\mathcal{L}\_{\text{coll}}(\xi)$ to prevent collision between the actuators:
+
 
 $$
 \min_{U,V} \mathcal{J} = \mathbb{E}_{z_0 \sim \mathcal{D}} \left[ \int_{0}^{T} \left( \mathcal{L}_{\text{track}}(z, z_{\text{ref}}) + \lambda_u \mathcal{L}_{\text{force}}(u) + \lambda_c \mathcal{L}_{\text{coll}}(\xi) \right) dt \right]
