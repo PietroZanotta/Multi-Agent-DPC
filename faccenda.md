@@ -24,8 +24,8 @@ dpc_project/
 
 
 to do:
-- nuovi esperimentini:
-    - cross pde transfer (Train on Heat equation ($\nu = 0.2$), test on Heat equation with different $\nu \in \{0.1, 0.3, 0.5\}$, then test on Fisher-KPP (if tracking target is similar))
-- conclude the overleaf and polish
-- clean up the code; polish the code
+- finire readme
+- testare tutto, lato requirements in particolare
+- fai sezione dpc
+- fai i due algoritmo
 
