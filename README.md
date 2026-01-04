@@ -187,7 +187,7 @@ while the result for the **decentralized policy** is:
 
 Similar visualizations for the 2d Heat equation are the following:
 - **Centralized policy**:
-![FKPP Animation Decentralized](/examples/heat2D/decentralized/heat2d_animation.gif)
+![FKPP Animation Decentralized](/examples/heat2D/centralized/heat2d_animation.gif)
 
 - **Decentralized policy**:
 ![FKPP Animation Decentralized](/examples/heat2D/decentralized/heat2d_animation.gif)
