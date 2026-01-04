@@ -8,7 +8,7 @@
 
 This project introduces and experiments with a decentralized control framework for systems described by PDEs. Leveraging [Tesseract-Jax](https://github.com/pasteurlabs/tesseract-jax) to implement the PDE solver as a differentiable layer, we leverage the [Differentiable Predictive Control](https://arxiv.org/abs/2011.03699) framework to enable autonomous agents to interact with the physical field for trajectory tracking.
 
-This project was ideated and evaluated by [Pietro Zanotta](https://github.com/PietroZanotta)<sup>1</sup>, [Dibakar Roy](https://github.com/RoyDibs)<sup>1</sup> and [Honghui Zheng](https://github.com/Honghui-Zheng) as part of the [Tesseract Hackathon 2025](https://pasteurlabs.ai/tesseract-hackathon-2025/). 
+This project was ideated and evaluated by [Pietro Zanotta](https://github.com/PietroZanotta)<sup>1</sup>, [Dibakar Roy](https://github.com/RoyDibs)<sup>1</sup> and [Honghui Zheng](https://github.com/Honghui-Zheng)<sup>1</sup> as part of the [Tesseract Hackathon 2025](https://pasteurlabs.ai/tesseract-hackathon-2025/). 
 
 Contacts:
 - Pietro Zanotta: pzanott1@jhu.edu
@@ -21,7 +21,7 @@ Contacts:
 
 ## Key Features
 - **Differentiable Operator Learning for Control**: we recast policy synthesis for PDE systems as an operator learning problem using the DeepONet framework. By treating the PDE solver as a differentiable layer through the Tesseract differentiable programming library, we compute exact sensitivity gradients for policy optimization then used within the *Differentiable Predictive Control* framewok.
-- **Zero-Shot Scalability**: Policies trained on a fixed swarm size $N$ generalize to unseen cardinalities $M$ (e.g., training on 20 agents and deploying on 60) without further tuning.
+- **Zero-Shot Scalability**: Policies trained on a fixed swarm size $N$ generalize to unseen cardinalities $M$ (e.g., training on 20 agents and deploying on 60) without further tuning, allowing resilience to actuator failure.
 - **Communication-Free Coordination:** We test the scenarion where agents operate using local-only sensing and zero inter-agent communication, where we observe an *emerging self-normalization property*, coming from stigmergic interaction, preventing overactuation. 
 - **Theoretical Gradient Consistency**: We provide a mathematical foundation theorem ensuring that discrete policy gradients converge to the mean-field limit as the swarm size $N \rightarrow \infty$.
 - **Parameter Efficiency:** In our toy examples, the decentralized approach utilizes *48% fewer parameters* than centralized benchmarks while maintaining competitive performance.
@@ -30,13 +30,50 @@ For a more rigorous discussion about all the above points we suggest reading thr
 
 ---
 
-## TOC
-- Numerical Experiments
-- About this Project
-- Structure of this Repository
-- Getting Started
-- Future Work
-- Tech Stack
+## Table of Contents
+- [About this Project](#about-this-project)
+- [Numerical Experiments](#numerical-experiments)
+- [Structure of this Repository](#structure-of-this-repository)
+- [Getting Started](#getting-started)
+- [Future Work](#future-work)
+- [Tech Stack](#tech-stack)
+
+---
+
+## About this Project
+This research explores the intersection of Differentiable Programming, Operator Learning, and Swarm Intelligence. We demonstrate that treating a PDE solver as a neural network layer allows for the training of highly efficient, decentralized control policies. In this section we provide a brief introduction to the problem formulation. For a more rigorous discussion we refer to out technical document.
+
+### Problem Statement
+The control objective is to find an optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}_{track}(z, z_{ref})$ a term $\mathcal{L}_{force}(u)$ discouraging from large energy consumption and $\mathcal{L}_{coll}(\xi)$ to prevent collision between the actuators:
+$$\min_{U,V} \mathcal{J} = \mathbb{E}_{z_0 \sim \mathcal{D}} \left[ \int_{0}^{T} \left( \mathcal{L}_{track}(z, z_{ref}) + \lambda_u \mathcal{L}_{force}(u) + \lambda_c \mathcal{L}_{coll}(\xi) \right) dt \right]$$
+
+where $\xi$ is the position of the $i$-th actuator. Our system is subject to the System Dynamics (PDE):The state field $z(x,t)$ evolves according to a non-homogeneous nonlinear partial differential equation:
+$$\frac{\partial z(x,t)}{\partial t} = \mathcal{A}(z; \mu) + \mathcal{B}(x,t)$$
+
+where the total forcing $\mathcal{B}(x,t)$ is the superposition of individual actuator contributions filtered through a spatial Gaussian kernel $b(x, \xi_i)$: 
+$$\mathcal{B}(x,t) = \sum_{i=1}^{N} b(x, \xi_i(t))u_i(t).$$
+
+The actuator kinematics is s.t. each mobile actuator $i \in \{1, \dots, N\}$ follows first-order integrator dynamics:
+$$\frac{d\xi_i(t)}{dt} = v_i(t), \quad \xi_i(0) = \xi_{i,0}.$$
+
+The optimization is also subject to the following physical and kinematic limits (hard constraints):
+- Control Saturation: $|u_i(t)| \le u_{max}$
+- Kinematic Limits: $|v_i(t)| \le v_{max}$ 
+- Boundary Containment: $\xi_i(t) \in \Omega$
+
+### Differentiable Predictive Control
+To syntesize a policy approximating the optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ we rely on DIfferentiable Predictive Control. In our framework, the control policy is parameterized by a neural operator $\mathcal{G}_{\theta}$ that maps current observations to optimal actions. During training, we perform the following steps:
+- **Forward Pass**: The current state $z_k$ and control actions $u_k$ are passed through a differentiable operator $\Psi$ (the PDE solver) to predict the future state $z_{k+1}$. It is relevant that such a solver is created using Tesseract, to allow differentiable simulations.
+- **Sensitivity Analysis**: By applying the chain rule through the solver, we compute exact sensitivity gradients of the future state with respect to the policy parameters $\theta$
+- **Policy Optimization**: These gradients are used to update the neural network, minimizing the total loss $\mathcal{J}$ over a trajectory of length $K$.
+
+### Key advantages:
+- **Real-Time Efficiency**: Once trained, the policy is a simple feed-forward neural network, enabling near-instantaneous control decisions during deployment
+- **Exact Gradients**: By using Tesseract, we avoid the approximations found in reinforcement learning, instead utilizing the underlying physics to guide optimization
+- **Zero-Shot Scalability**: Because the policy maps the error field to actions at any spatial query point $\xi \in \Omega$, it can be deployed on arbitrary agent configurations and swarm sizes, making our policy resilient to the case of actuator failure
+- **Communication-Free Scaling**: In the decentralized scenario, because each agent shares the same parameters and "senses" the global state through the physical field, the swarm naturally coordinates its actions (stigmergy) without needing inter-agent communication
+
+Note that part of the theoretical results on Zero-Shot Scalability rely on a conjecture that we are only empirically validating. For a more rigorous discussion about all the above points we suggest reading through our technical document.
 
 ---
 
@@ -56,10 +93,6 @@ The framework was validated on two primary physical systems:
 | **Scalability**            | Zero-shot          | Zero-shot            | Zero-shot                | Zero-shot                  |
 | **Communication**          | Global             | None                 | Global                   | None                       |
 | **Training Time (500 ep.)**| ~1 min             | ~1 min               | ~3 min                   | ~3 min                     |
-
----
-
-## About this Project
 
 ---
 

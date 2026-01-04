@@ -28,5 +28,6 @@ to do:
 - testare tutto, lato requirements in particolare
 - fai sezione dpc
 - fai i due algoritmi e aggiungi cit here and there
+- manca qualche 
 
 
