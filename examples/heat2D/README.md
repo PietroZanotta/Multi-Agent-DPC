@@ -142,19 +142,36 @@ The system generates training data using 2D Gaussian Random Fields (GRF) with ze
 - Initial states: 0.25 (sharper features)
 - Target states: 0.4 (smoother)
 
-## Expected Results
+## Architecture and Performance Comparison
+
+The following table summarizes the key differences between centralized and decentralized controllers:
+
+| **Metric** | **Centralized** | **Decentralized** |
+|------------|-----------------|-------------------|
+| **Branch Input Dim** | 32×32×3 (3,072) | 12×12×3 (432) |
+| **CNN Features** | [16, 32] (3×3 conv) | [16, 32] (3×3 conv) |
+| **Fusion Hidden** | 64 (tanh) | 64 (tanh) |
+| **Output Heads** | u∈ℝ, v∈ℝ² | u∈ℝ, v∈ℝ² |
+| **Total Parameters** | 2,116,003 | 158,531 |
+| **Checkpoint Size** | 8.1 MB | 620 KB |
+| **Final MSE (Controlled)** | 1.50×10⁻⁴ | 8.60×10⁻⁵ |
+| **Final MSE (Uncontrolled)** | 3.45×10⁻² | 3.45×10⁻² |
+| **Improvement** | 99.6% | 99.8% |
+| **Scalability** | Zero-shot (global) | Zero-shot (local) |
+| **Communication** | Global | None |
+
+### Key Observations
+
+1. **Model Efficiency**: The decentralized controller is 13× smaller (158K vs 2.1M parameters) while achieving comparable or better performance
+2. **Performance**: Both controllers achieve >99.5% reduction in tracking error compared to uncontrolled evolution
+3. **Architecture Trade-offs**:
+   - **Centralized**: Processes full 32×32 grid, larger trunk network (64-dim), global coordination
+   - **Decentralized**: Each agent sees only 12×12 local patch, smaller trunk (32-dim), stigmergic coordination
+4. **Surprising Result**: The decentralized controller achieves slightly lower final MSE (8.6×10⁻⁵ vs 1.5×10⁻⁴), demonstrating that local sensing can be sufficient for effective coordination
 
 ### Training Time
 - ~30-60 minutes for 500 epochs (depending on hardware)
 - Data generation: ~10-20 minutes
-
-### Performance
-- **Centralized**: Final tracking loss <0.1
-- **Decentralized**: Final tracking loss <0.2 (slightly higher due to local sensing)
-
-### Model Size
-- **Centralized**: ~200KB
-- **Decentralized**: ~100KB (smaller due to local patches)
 
 ## Technical Details
 
