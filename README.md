@@ -17,7 +17,7 @@ Contacts:
 
 <sup>1</sup>: shared first authorship
 
-![Heat 2d Decentralized](/figs/heat2d_animation_decentalized.gif)
+![Heat 2d Decentralized](figs/heat2d_animation_decentalized.gif)
 
 ---
 
@@ -44,7 +44,6 @@ For a more rigorous discussion about all the above points we suggest reading thr
     - [Performance Summary](#performance-summary)
   - [Structure of this Repository](#structure-of-this-repository)
   - [Getting Started](#getting-started)
-  - [Future Work](#future-work)
   - [Tech Stack](#tech-stack)
 
 ---
@@ -78,7 +77,9 @@ $$\frac{d\xi_i(t)}{dt} = v_i(t), \quad \xi_i(0) = \xi_{i,0}$$
 - Boundary Containment: $\xi_i(t) \in \Omega$
 
 ### Differentiable Predictive Control
-![Multi-Agentic_DPC]()
+
+![Multi-Agentic_DPC](figs/Multi-Agentic_DPC.png)
+
 To syntesize a policy approximating the optimal control sequence $U(t) = \lbrace u_i(t) \rbrace_{i=1}^N$ and velocity sequence $V(t) = \lbrace v_i(t) \rbrace_{i=1}^N$ we rely on DIfferentiable Predictive Control. In our framework, the control policy is parameterized by a neural operator $\mathcal{G}_{\theta}$ that maps current observations to optimal actions. During training, we perform the following steps:
 - **Forward Pass**: The current state $z_k$ and control actions $u_k$ are passed through a differentiable operator $\Psi$ (the PDE solver) to predict the future state $z_{k+1}$. It is relevant that such a solver is created using Tesseract, to allow differentiable simulations.
 - **Sensitivity Analysis**: By applying the chain rule through the solver, we compute exact sensitivity gradients of the future state with respect to the policy parameters $\theta$
@@ -199,23 +200,23 @@ cd ../../examples/heat1d/centralized && python visualize_conference.py
 cd ../decentralized && python visualize_conference.py
 ```
 The result for the **centralized policy** is:
-![Heat centralized](/examples/heat1d/centralized/heat_dpc_visualization_ex2.png)
+![Heat centralized](examples/heat1d/centralized/heat_dpc_visualization_ex2.png)
 while the **decentralized policy** result for  the same problem is:
-![Heat decentralized](/examples/heat1d/decentralized/heat_dpc_decentralized_ex2.png)
+![Heat decentralized](examples/heat1d/decentralized/heat_dpc_decentralized_ex2.png)
 
 We invite you to explore further our examples. In particular we highlight the `animate.py` scripts which are creating GIFs and MP4 documents (this might require you to install [FFMpegWriter](https://ffmpeg.org/)). `animate.py` produces results like the following for the Fisher-KPP equation:
 
 - **Centralized policy**:
-  ![fkpp centralized](/figs/fkpp_centralized_animation.gif)
+  ![fkpp centralized](figs/fkpp_centralized_animation.gif)
 - **Decentralized policy**: 
-  ![fkpp decentralized](/figs/heat2d_animation_decentalized.gif)
+  ![fkpp decentralized](figs/fkpp_decentralized_animation.gif)
 
 Similar visualizations for the 2D Heat equation:
 
 - **Centralized policy**: 
-  ![Heat 2d Cecentralized](/figs/heat2d_animation_centralized.gif)
+  ![Heat 2d Cecentralized](figs/heat2d_animation_centralized.gif)
 - **Decentralized policy**: 
-  ![Heat 2d Decentralized](/figs/heat2d_animation_decentalized.gif)
+  ![Heat 2d Decentralized](figs/heat2d_animation_decentalized.gif)
 
 Last we highligh that the script supporting the empirical evidence underlying our self-normalization conjecture are produced running `/examples/fkpp1d/decentralized/visualize_lambda_effort.py` and `/examples/fkpp1d/decentralized/visualize_comparison.py`.
 
@@ -224,13 +225,6 @@ Last we highligh that the script supporting the empirical evidence underlying ou
 2. Train the policy in `examples/PDE_OF_INTEREST` (e.g. for decentralize FKPP do `cd ../../examples/fkpp1d/decentralized && python train.py`). NOTE that pretrained models are already provided for anybody who does not have access to a GPU.
 3. Produce the visualizations of you interest (e.g. for decentralize FKPP do `python visualize_conference.py && python animate.py`) 
 
----
-
-## Future Work
-There are various research directions we believe can stem from this project. Here is a list of the ones we believe are the most promising:
-- Understand all the perks and the limitations of casting the policy synthesis into an operator learning paradigm. 
-- Estending our theoretical analysis to a wider class of PDEs and formally proving our serf-normalization conjecture.
-- Implementing Shared Memory strategies (e.g. `/dev/shm`) to minimize the serialization cost of communication beween the python script and the Tesseract during the training of the policy.
 
 ---
 
