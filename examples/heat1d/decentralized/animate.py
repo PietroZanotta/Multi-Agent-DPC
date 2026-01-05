@@ -1,4 +1,7 @@
-
+"""
+Animation Script for Heat 1d Decentralized DPC
+Creates GIF and MP4 animations showing controlled evolution over time
+"""
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt

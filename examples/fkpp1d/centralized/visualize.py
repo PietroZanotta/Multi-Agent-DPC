@@ -1,3 +1,4 @@
+"""Visualization script for Centralized 1D Fisher-KPP Control using Tesseract-JAX and ControlNet policy."""
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt

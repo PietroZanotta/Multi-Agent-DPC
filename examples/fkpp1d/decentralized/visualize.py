@@ -1,3 +1,4 @@
+"""Visualization script for Decentralized 1D Fisher-KPP Control using Tesseract-JAX and DecentralizedControlNet policy."""
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt

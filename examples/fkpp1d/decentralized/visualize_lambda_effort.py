@@ -1,3 +1,12 @@
+"""
+Analysis and Visualization of Control Effort vs. Control effort lagrangian penalty factor in Decentralized 1D Fisher-KPP Control 
+using Tesseract-JAX and DecentralizedControlNet policy. If our conjecture holds, we should see that increasing the penalty factor
+leads to a decrease in overall control effort, even as the number of agents scales beyond training conditions.
+
+Expected behaviours: 
+* \sum |u_i| should stay more or less CONSTANT as we increase the number of agents agents -> the control forcing term norm ||B|| is independent of N
+* \sum u_i^2 should DECREASE as we increase the number of agents -> u_i ~ O(1/N), resulting in reduced individual efforts (self-normalization)
+"""
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt

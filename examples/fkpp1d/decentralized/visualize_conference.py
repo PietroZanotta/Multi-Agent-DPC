@@ -1,7 +1,6 @@
 """
 Conference-Quality Visualization for FKPP1D Decentralized DPC
 Style reference: Times New Roman fonts, RdBu_r colormap, clean academic layout
-Uses SAME random seeds as centralized for direct comparison
 """
 import jax
 import jax.numpy as jnp

@@ -1,3 +1,4 @@
+"""Training script for Decentralized 2D Heat Equation Control using Tesseract-JAX and DecentralizedControlNet policy."""
 import jax
 import jax.numpy as jnp
 from tesseract_core import Tesseract
