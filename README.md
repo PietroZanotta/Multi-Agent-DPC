@@ -200,23 +200,32 @@ cd ../../examples/heat1d/centralized && python visualize_conference.py
 cd ../decentralized && python visualize_conference.py
 ```
 The result for the **centralized policy** is:
-![Heat centralized](examples/heat1d/centralized/heat_dpc_visualization_ex2.png)
+
+<img src="examples/heat1d/centralized/heat_dpc_visualization_ex2.png" width="500">
+
 while the **decentralized policy** result for  the same problem is:
-![Heat decentralized](examples/heat1d/decentralized/heat_dpc_decentralized_ex2.png)
+
+<img src="examples/heat1d/decentralized/heat_dpc_decentralized_ex2.png" width="500">
 
 We invite you to explore further our examples. In particular we highlight the `animate.py` scripts which are creating GIFs and MP4 documents (this might require you to install [FFMpegWriter](https://ffmpeg.org/)). `animate.py` produces results like the following for the Fisher-KPP equation:
 
 - **Centralized policy**:
-  ![fkpp centralized](figs/fkpp_centralized_animation.gif)
+  
+  <img src="figs/fkpp_centralized_animation.gif" width="500">
+  
 - **Decentralized policy**: 
-  ![fkpp decentralized](figs/fkpp_decentralized_animation.gif)
+  
+  <img src="figs/fkpp_decentralized_animation.gif" width="500">
 
 Similar visualizations for the 2D Heat equation:
 
 - **Centralized policy**: 
-  ![Heat 2d Cecentralized](figs/heat2d_animation_centralized.gif)
+  
+  <img src="figs/heat2d_animation_centralized.gif" width="500">
+  
 - **Decentralized policy**: 
-  ![Heat 2d Decentralized](figs/heat2d_animation_decentalized.gif)
+  
+  <img src="figs/heat2d_animation_decentalized.gif" width="500">
 
 Last we highligh that the script supporting the empirical evidence underlying our self-normalization conjecture are produced running `/examples/fkpp1d/decentralized/visualize_lambda_effort.py` and `/examples/fkpp1d/decentralized/visualize_comparison.py`.
 
@@ -224,7 +233,6 @@ Last we highligh that the script supporting the empirical evidence underlying ou
 1. Build the tesseract of interest (you find then in the `tesseracts` folder) with `tesseract build PATH/TO/TESSERACT` (e.g. for decentralize FKPP do `cd tesseracts/solverFKPP_decentralized && tesseract build .`)
 2. Train the policy in `examples/PDE_OF_INTEREST` (e.g. for decentralize FKPP do `cd ../../examples/fkpp1d/decentralized && python train.py`). NOTE that pretrained models are already provided for anybody who does not have access to a GPU.
 3. Produce the visualizations of you interest (e.g. for decentralize FKPP do `python visualize_conference.py && python animate.py`) 
-
 
 ---
 
