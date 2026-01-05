@@ -37,7 +37,6 @@ For a more rigorous discussion about all the above points we suggest reading thr
 - [Numerical Experiments](#numerical-experiments)
 - [Structure of this Repository](#structure-of-this-repository)
 - [Getting Started](#getting-started)
-- [Tesseract](#tesseract)
 - [Future Work](#future-work)
 - [Tech Stack](#tech-stack)
 
@@ -72,7 +71,8 @@ $$\frac{d\xi_i(t)}{dt} = v_i(t), \quad \xi_i(0) = \xi_{i,0}$$
 - Boundary Containment: $\xi_i(t) \in \Omega$
 
 ### Differentiable Predictive Control
-To syntesize a policy approximating the optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ we rely on DIfferentiable Predictive Control. In our framework, the control policy is parameterized by a neural operator $\mathcal{G}_{\theta}$ that maps current observations to optimal actions. During training, we perform the following steps:
+![Multi-Agentic_DPC](assets/Multi-Agentic_DPC.png)
+To syntesize a policy approximating the optimal control sequence $U(t) = \lbrace u_i(t) \rbrace_{i=1}^N$ and velocity sequence $V(t) = \lbrace v_i(t) \rbrace_{i=1}^N$ we rely on DIfferentiable Predictive Control. In our framework, the control policy is parameterized by a neural operator $\mathcal{G}_{\theta}$ that maps current observations to optimal actions. During training, we perform the following steps:
 - **Forward Pass**: The current state $z_k$ and control actions $u_k$ are passed through a differentiable operator $\Psi$ (the PDE solver) to predict the future state $z_{k+1}$. It is relevant that such a solver is created using Tesseract, to allow differentiable simulations.
 - **Sensitivity Analysis**: By applying the chain rule through the solver, we compute exact sensitivity gradients of the future state with respect to the policy parameters $\theta$
 - **Policy Optimization**: These gradients are used to update the neural network, minimizing the total loss $\mathcal{J}$ over a trajectory of length $K$.
@@ -189,7 +189,7 @@ cd ../solverHeat_decentralized && Tesseract build .
 cd ../../examples/heat1d/centralized && python visualize_conference.py
 
 # Test the decentralized policy
-cd ../decentralized && python visualize_conference.py .
+cd ../decentralized && python visualize_conference.py
 ```
 The result for the **centralized policy** is:
 ![Heat centralized](/examples/heat1d/centralized/heat_dpc_visualization_ex2.png)
@@ -231,6 +231,6 @@ There are various research directions we believe can stem from this project. Her
 - **Main Frameworks:** JAX (v0.8.1) for numerical computing; Tesseract-JAX (v0.2.2) for differentiable PDE solvers
 - **Hardware Acceleration:** CUDA backend with NVIDIA driver v581.57
 
-See our [[technical document](Multi_agent_report_2026.pdf)](Multi_agent_report_2026.pdf) for details about our experimental setup.
+See our [technical document](Multi_agent_report_2026.pdf) for details about our experimental setup.
 
 ---
