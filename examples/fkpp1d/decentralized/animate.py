@@ -1,7 +1,6 @@
 """
 Animation Script for FKPP1D Decentralized DPC
 Creates GIF and MP4 animations showing controlled evolution over time
-Uses SAME random seeds as centralized for direct comparison
 """
 import jax
 import jax.numpy as jnp

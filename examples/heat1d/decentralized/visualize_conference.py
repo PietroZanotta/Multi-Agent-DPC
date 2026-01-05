@@ -1,3 +1,7 @@
+"""
+Conference-Quality Visualization for Heat 1d Decentralized DPC
+Style reference: Times New Roman fonts, RdBu_r colormap, clean academic layout
+"""
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt

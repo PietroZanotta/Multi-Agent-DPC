@@ -1,3 +1,8 @@
+"""
+Centralized Deep Policy Control Training Script for 1D Heat Equation:
+trains a ControlNet policy to manage agent positions and forcing intensities
+to steer the FKPP dynamics towards target states while respecting constraints.
+"""
 import jax
 import jax.numpy as jnp
 from tesseract_core import Tesseract

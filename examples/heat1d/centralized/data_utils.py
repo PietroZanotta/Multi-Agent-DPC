@@ -1,3 +1,7 @@
+"""
+Data Utilities for 1D Heat Equation Centralized DPC Example
+Generates smooth Gaussian Random Fields with zero boundary conditions
+"""
 import jax
 import jax.numpy as jnp
 

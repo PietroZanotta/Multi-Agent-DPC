@@ -1,3 +1,8 @@
+"""
+Data Utilities for 1D FKPP Equation Centralized DPC Example
+Generates smooth Gaussian Random Fields with zero boundary conditions then converts to positive fields
+for meaningful population densities.
+"""
 import jax
 import jax.numpy as jnp
 

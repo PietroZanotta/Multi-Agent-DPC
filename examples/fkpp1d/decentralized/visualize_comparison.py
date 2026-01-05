@@ -1,3 +1,13 @@
+"""
+Scalability Analysis Visualization for Decentralized 1D Fisher-KPP Control:
+evaluates zero-shot performance of a DecentralizedControlNet policy
+as the number of agents varies beyond training conditions with no further fine tuning (Zero-Shot).
+
+Expected Outcome:
+* Tracking MSE should remain low and stable as N increases beyond training conditions and goes beyond the underactuated regime (too little agents, 
+whose basis linear combinations are insufficient to reach the target).
+* Total Control Effort should remain stable as N increases, demonstrating self-normalization effects (bounded control forcing term norm ||B||)
+"""
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt

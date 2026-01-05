@@ -1,3 +1,5 @@
+"""Data utilities for 2D Heat Equation Control example.
+Generates smooth Gaussian Random Fields with zero Dirichlet boundary conditions."""
 import jax
 import jax.numpy as jnp
 import numpy as np

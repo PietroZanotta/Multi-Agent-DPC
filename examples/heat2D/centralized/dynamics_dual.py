@@ -1,3 +1,7 @@
+"""
+Dynamics module for Centralized 2D Heat Equation Control using Tesseract-JAX and ControlNet policy.
+Enables controlled simulations via a ControlNet policy, either through Tesseract runtime or native JAX (for fast prototyping).
+"""
 import jax
 import jax.numpy as jnp
 from tesseract_jax import apply_tesseract

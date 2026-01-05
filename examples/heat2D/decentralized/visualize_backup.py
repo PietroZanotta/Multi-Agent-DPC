@@ -1,3 +1,4 @@
+"""Visualization script for Decentralized 2D Heat Control using Tesseract-JAX and DecentralizedControlNet policy."""
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
