@@ -44,6 +44,7 @@ For a more rigorous discussion about all the above points we suggest reading thr
     - [Performance Summary](#performance-summary)
   - [Structure of this Repository](#structure-of-this-repository)
   - [Getting Started](#getting-started)
+  - [Future Work](#future-work)
   - [Tech Stack](#tech-stack)
 
 ---
@@ -233,6 +234,14 @@ Last we highligh that the script supporting the empirical evidence underlying ou
 1. Build the tesseract of interest (you find then in the `tesseracts` folder) with `tesseract build PATH/TO/TESSERACT` (e.g. for decentralize FKPP do `cd tesseracts/solverFKPP_decentralized && tesseract build .`)
 2. Train the policy in `examples/PDE_OF_INTEREST` (e.g. for decentralize FKPP do `cd ../../examples/fkpp1d/decentralized && python train.py`). NOTE that pretrained models are already provided for anybody who does not have access to a GPU.
 3. Produce the visualizations of you interest (e.g. for decentralize FKPP do `python visualize_conference.py && python animate.py`) 
+
+---
+
+## Future Work
+There are various research directions we believe can stem from this project. Here is a list of the ones we believe are the most promising:
+- Understand all the perks and the limitations of casting the policy synthesis into an operator learning paradigm. 
+- Estending our theoretical analysis to a wider class of PDEs and formally proving our serf-normalization conjecture.
+- Implementing Shared Memory strategies (e.g. `/dev/shm`) to minimize the serialization cost of communication beween the python script and the Tesseract during the training of the policy.
 
 ---
 
