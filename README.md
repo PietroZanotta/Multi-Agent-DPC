@@ -99,7 +99,7 @@ Algorithm pseudocodes can be found below:
 
 ![pseudocode centralized](figs/algo_cent.png)
 
-- **Centralized Policy Pseudocode:**
+- **Decentralized Policy Pseudocode:**
 
 ![pseudocode decentralized](figs/algo_dec.png)
 
