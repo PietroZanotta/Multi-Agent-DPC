@@ -39,11 +39,17 @@ For a more rigorous discussion about all the above points we suggest reading thr
   - [About this Project](#about-this-project)
     - [Problem Statement](#problem-statement)
     - [Differentiable Predictive Control](#differentiable-predictive-control)
-    - [Key advantages:](#key-advantages)
   - [Numerical Experiments](#numerical-experiments)
     - [Performance Summary](#performance-summary)
   - [Structure of this Repository](#structure-of-this-repository)
   - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Building Tesseract Solvers](#building-tesseract-solvers)
+    - [Quick Start: Visualizing Pre-trained Models](#quick-start-visualizing-pre-trained-models)
+    - [Optional: Generate Animations](#optional-generate-animations)
+    - [Optional: Train Custom Policies](#optional-train-custom-policies)
+    - [Advanced: Analyzing Scalability & Stigmergy](#advanced-analyzing-scalability--stigmergy)
+    - [Troubleshooting](#troubleshooting)
   - [Future Work](#future-work)
   - [Tech Stack](#tech-stack)
 
@@ -85,12 +91,6 @@ To syntesize a policy approximating the optimal control sequence $U(t) = \lbrace
 - **Forward Pass**: The current state $z_k$ and control actions $u_k$ are passed through a differentiable operator $\Psi$ (the PDE solver) to predict the future state $z_{k+1}$. It is relevant that such a solver is created using Tesseract, to allow differentiable simulations.
 - **Sensitivity Analysis**: By applying the chain rule through the solver, we compute exact sensitivity gradients of the future state with respect to the policy parameters $\theta$
 - **Policy Optimization**: These gradients are used to update the neural network, minimizing the total loss $\mathcal{J}$ over a trajectory of length $K$.
-
-### Key advantages:
-- **Real-Time Efficiency**: Once trained, the policy is a simple feed-forward neural network, enabling near-instantaneous control decisions during deployment
-- **Exact Gradients**: By using Tesseract, we avoid the approximations found in reinforcement learning, instead utilizing the underlying physics to guide optimization
-- **Zero-Shot Scalability**: Because the policy maps the error field to actions at any spatial query point $\xi \in \Omega$, it can be deployed on arbitrary agent configurations and swarm sizes, making our policy resilient to the case of actuator failure
-- **Communication-Free Scaling**: In the decentralized scenario, because each agent shares the same parameters and "senses" the global state through the physical field, the swarm naturally coordinates its actions (stigmergy) without needing inter-agent communication
 
 Note that part of the theoretical results on Zero-Shot Scalability rely on a conjecture that we are only empirically validating. For a more rigorous discussion about all the above points we suggest reading through our [technical document](Multi_agent_report_2026.pdf).
 
@@ -157,92 +157,256 @@ tesseract-hackathon/
 
 ## Getting Started
 
-0. Clone this repo:
+### Prerequisites
+
+0. **Clone the repository:**
 ```bash
 git clone https://github.com/PietroZanotta/Multi-Agent-DPC
 cd Multi-Agent-DPC
 ```
 
-1. Create your virtual environment: 
+1. **Set up Python virtual environment:**
 ```bash
 python -m venv .venv
 ```
-and activate it:
-- Linux/MacOS:
+
+Activate the virtual environment:
+- **Linux/MacOS:**
 ```bash
 source .venv/bin/activate
 ```
-- Windows:
+- **Windows (PowerShell):**
 ```powershell
-.venv/Scripts/activate
+.venv\Scripts\activate
 ```
-2. Install requirements:
+
+2. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
-If you have access to a GPU and are planning to train the policies on your device we suggest you also download `jax[cuda]`.
 
-3. Build the Tesseracts of interests (in this demo only the Heat equation Tesseracts. The process is similar for the other Tesseracts):
+> [!TIP]
+> If you have GPU access and want to accelerate training, also install JAX with CUDA:
+> ```bash
+> pip install jax[cuda12]
+> ```
+
+3. **Verify Tesseract installation:**
 ```bash
-# Build the centralized policy Tesseract
-cd tesseracts/solverHeat_centralized && Tesseract build .
-
-# Build the decentralized policy Tesseract
-cd ../solverHeat_decentralized && Tesseract build .
+which tesseract  # Linux/MacOS
+# or
+where tesseract  # Windows
 ```
 
 > [!NOTE]
-> **For Mac Users:** If `Tesseract build .` doesn't work because your system already has Tesseract OCR installed (which conflicts with the Tesseract-JAX command), you can use the full path to the tesseract binary inside your virtual environment instead (or use aliasing):
+> **For Mac Users:** If `tesseract build` conflicts with the Tesseract OCR binary, use the full path:
 > ```bash
-> cd tesseracts/solverHeat_centralized && /path/to/your/venv/bin/tesseract build .
-> ```
-> For example, if your virtual environment is named `.venv`, the command would be:
-> ```bash
-> cd tesseracts/solverHeat_centralized && ./.venv/bin/tesseract build .
+> /path/to/venv/bin/tesseract build .
 > ```
 
-4. Once the differentiable physical solver has been created, we test the pretrained policies as:
+---
+
+### Building Tesseract Solvers
+
+Build the differentiable PDE solvers (required only once). This step containerizes each solver with its neural network policy as a differentiable layer.
+
 ```bash
-# Test the centralize policy
-cd ../../examples/heat1d/centralized && python visualize_conference.py
+# Build Heat Equation (1D)
+cd tesseracts/solverHeat_centralized && tesseract build .
+cd ../solverHeat_decentralized && tesseract build .
 
-# Test the decentralized policy
-cd ../decentralized && python visualize_conference.py
+# Build Fisher-KPP (1D reaction-diffusion)
+cd ../solverFKPP_centralized && tesseract build .
+cd ../solverFKPP_decentralized && tesseract build .
+
+# Build 2D Heat Equation (likely already built in demo environments)
+cd ../solverHeat2D_centralized && tesseract build .
+cd ../solverHeat2D_decentralized && tesseract build .
+
+# Return to project root
+cd ../..
 ```
-The result for the **centralized policy** is:
+
+> [!INFO]
+> Each `tesseract build` command creates a Docker image containing the PDE solver and its trained policy. The first build takes 5-10 minutes per solver; subsequent builds are cached. You can verify built images with:
+> ```bash
+> docker images | grep solver
+> ```
+
+---
+
+### Quick Start: Visualizing Pre-trained Models
+
+Pre-trained policy weights are included, so you can visualize results immediately without training (takes <1 min per experiment):
+
+#### **Heat Equation - 1D**
+
+Centralized policy (global sensing):
+```bash
+cd examples/heat1d/centralized
+python visualize_conference.py
+# Generates: heat_dpc_visualization_*.png, heat_dpc_agents_*.png
+```
+
+Decentralized policy (local sensing, communication-free):
+```bash
+cd ../decentralized
+python visualize_conference.py
+# Generates: heat_dpc_decentralized_visualization_*.png
+```
+
+**Example output (centralized):**
 
 <img src="examples/heat1d/centralized/heat_dpc_visualization_ex2.png" width="500">
 
-while the **decentralized policy** result for  the same problem is:
+#### **Fisher-KPP Equation - 1D**
 
-<img src="examples/heat1d/decentralized/heat_dpc_decentralized_ex2.png" width="500">
+Centralized policy:
+```bash
+cd ../../fkpp1d/centralized
+python visualize_conference.py
+# Generates: fkpp_dpc_visualization_*.png
+```
 
-We invite you to explore further our examples. In particular we highlight the `animate.py` scripts which are creating GIFs and MP4 documents (this might require you to install [FFMpegWriter](https://ffmpeg.org/)). `animate.py` produces results like the following for the Fisher-KPP equation:
+Decentralized policy:
+```bash
+cd ../decentralized
+python visualize_conference.py
+# Generates: fkpp_dpc_decentralized_visualization_*.png
+```
 
-- **Centralized policy**:
-  
-  <img src="figs/fkpp_centralized_animation.gif" width="500">
-  
-- **Decentralized policy**: 
-  
-  <img src="figs/fkpp_decentralized_animation.gif" width="500">
+#### **Heat Equation - 2D**
 
-Similar visualizations for the 2D Heat equation:
+Centralized policy:
+```bash
+cd ../../heat2D/centralized
+python visualize.py
+# Generates: heat2d_centralized_visualization.png/pdf
+```
 
-- **Centralized policy**: 
-  
-  <img src="figs/heat2d_animation_centralized.gif" width="500">
-  
-- **Decentralized policy**: 
-  
-  <img src="figs/heat2d_animation_decentalized.gif" width="500">
+Decentralized policy:
+```bash
+cd ../decentralized
+python visualize.py
+# Generates: heat2d_decentralized_visualization.png/pdf
+```
 
-Last we highligh that the script supporting the empirical evidence underlying our self-normalization conjecture are produced running `/examples/fkpp1d/decentralized/visualize_lambda_effort.py` and `/examples/fkpp1d/decentralized/visualize_comparison.py`.
+**Example output (2D Heat - centralized):**
 
-[NOTE!] The workflow to reproduce the results is the following: 
-1. Build the tesseract of interest (you find then in the `tesseracts` folder) with `tesseract build PATH/TO/TESSERACT` (e.g. for decentralize FKPP do `cd tesseracts/solverFKPP_decentralized && tesseract build .`)
-2. Train the policy in `examples/PDE_OF_INTEREST` (e.g. for decentralize FKPP do `cd ../../examples/fkpp1d/decentralized && python train.py`). NOTE that pretrained models are already provided for anybody who does not have access to a GPU.
-3. Produce the visualizations of you interest (e.g. for decentralize FKPP do `python visualize_conference.py && python animate.py`) 
+<img src="examples/heat2D/centralized/heat2d_centralized_visualization.png" width="500">
+
+---
+
+### Optional: Generate Animations
+
+Create animated trajectories (.gif and .mp4) demonstrating the policy performance:
+
+```bash
+# Heat 1D - Centralized
+cd examples/heat1d/centralized && python animate.py
+# Generates: heat_dpc_animation.gif, heat_dpc_animation.mp4
+
+# Fisher-KPP - Decentralized
+cd ../../fkpp1d/decentralized && python animate.py
+# Generates: fkpp_dpc_animation.gif, fkpp_dpc_animation.mp4
+
+# Heat 2D - Centralized
+cd ../../heat2D/centralized && python animate.py
+# Generates: heat2d_animation.gif, heat2d_animation.mp4
+```
+
+> [!NOTE]
+> Animation generation requires [FFmpeg](https://ffmpeg.org/). On most systems:
+> ```bash
+> # Ubuntu/Debian
+> sudo apt-get install ffmpeg
+>
+> # macOS
+> brew install ffmpeg
+>
+> # Windows (with Chocolatey)
+> choco install ffmpeg
+> ```
+
+**Example animations:**
+- **Fisher-KPP - Centralized:** <img src="figs/fkpp_centralized_animation.gif" width="400">
+- **Fisher-KPP - Decentralized:** <img src="figs/fkpp_decentralized_animation.gif" width="400">
+- **Heat 2D - Centralized:** <img src="figs/heat2d_animation_centralized.gif" width="400">
+- **Heat 2D - Decentralized:** <img src="figs/heat2d_animation_decentalized.gif" width="400">
+
+---
+
+### Optional: Train Custom Policies
+
+To train policies on new datasets or modify architectures, use the training scripts. This requires significant compute (GPU recommended) and takes 15-60 min depending on system:
+
+```bash
+# Example: Train 1D Heat centralized policy
+cd examples/heat1d/centralized
+python data_utils.py           # Generate 5000 training trajectories
+python train.py                # Train for 500 epochs (saves centralized_params.msgpack)
+python visualize_conference.py # Visualize results
+```
+
+The training loop:
+1. `data_utils.py` - Generate synthetic initial conditions and targets via Gaussian Random Fields
+2. `train.py` - Train the policy (500 epochs) and save weights
+3. `visualize_conference.py` - Generate visualization plots
+4. `animate.py` - Create animated trajectories
+
+**Full workflow for all experiments:**
+```bash
+# Heat 1D
+for variant in centralized decentralized; do
+  cd examples/heat1d/$variant
+  python data_utils.py && python train.py && python visualize_conference.py
+  cd ../..
+done
+
+# Fisher-KPP 1D
+for variant in centralized decentralized; do
+  cd examples/fkpp1d/$variant
+  python data_utils.py && python train.py && python visualize_conference.py
+  cd ../..
+done
+
+# Heat 2D (longer training time)
+for variant in centralized decentralized; do
+  cd examples/heat2D/$variant
+  python data_utils.py && python train.py && python visualize.py
+  cd ../..
+done
+```
+
+---
+
+### Advanced: Analyzing Scalability & Stigmergy
+
+For decentralized policies, explore the self-normalization property empirically:
+
+```bash
+cd examples/fkpp1d/decentralized
+
+# Generate analysis for different coordination weights
+python visualize_lambda_effort.py
+# Demonstrates how stigmergic interaction (implicit coordination through field sensing)
+# prevents overactuation as swarm size increases
+
+# Compare centralized vs. decentralized
+python visualize_comparison.py
+```
+
+---
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `Image solver_X:latest not found` | Run `tesseract build tesseracts/solverX/` first |
+| `tesseract` command not found on Mac | Use full path: `/path/to/venv/bin/tesseract build .` |
+| Training is slow on CPU | Install `jax[cuda12]` and verify GPU is detected: `python -c "import jax; print(jax.devices())"` |
+| Out of memory errors | Reduce `batch_size` in `train.py` (default: 32) |
+| Animations won't generate | Install FFmpeg (see section above) | 
 
 ---
 
