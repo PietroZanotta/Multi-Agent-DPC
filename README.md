@@ -355,6 +355,8 @@ cd ../../heat2D/centralized && python animate.py
 
 To train policies on new datasets or modify architectures, use the training scripts. This requires significant compute (GPU recommended):
 
+Make sure you are at project root:
+
 ```bash
 # Example: Train 1D Heat centralized policy
 cd examples/heat1d/centralized
@@ -369,7 +371,8 @@ The training loop (data generation happens inside `train.py`):
 3. `animate.py` - Create animated trajectories
 
 **Full workflow for all experiments:**
-Make sure you are at project root 
+
+Make sure you are at project root: 
 ```bash
 # Heat 1D
 for variant in centralized decentralized; do
@@ -399,6 +402,7 @@ done
 
 For decentralized policies, explore the self-normalization property and zero-shot scalability empirically:
 
+Make sure you are at project root:
 ```bash
 cd examples/fkpp1d/decentralized
 
