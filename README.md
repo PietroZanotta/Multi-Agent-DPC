@@ -12,7 +12,7 @@ This project was ideated and evaluated by [Pietro Zanotta](https://github.com/Pi
 
 Contacts:
 - Pietro Zanotta: pzanott1@jhu.edu
-- Dibakar Roy Sarkar: droysar1@jh.edu
+- Dibakar Roy: droysar1@jh.edu
 - Honghui Zheng: hzheng39@jh.edu
 
 <sup>1</sup>: shared first authorship
@@ -22,7 +22,7 @@ Contacts:
 ## Key Features
 - **Differentiable Operator Learning for Control**: we recast policy synthesis for PDE systems as an operator learning problem using the DeepONet framework. By treating the PDE solver as a differentiable layer through the Tesseract differentiable programming library, we compute exact sensitivity gradients for policy optimization then used within the *Differentiable Predictive Control* framewok.
 - **Zero-Shot Scalability**: Policies trained on a fixed swarm size $N$ generalize to unseen cardinalities $M$ (e.g., training on 20 agents and deploying on 60) without further tuning, allowing resilience to actuator failure.
-- **Communication-Free Coordination:** We test the scenario where agents operate using local-only sensing and zero inter-agent communication, where we observe an *emerging self-normalization property*, coming from stigmergic interaction, preventing overactuation. 
+- **Communication-Free Coordination:** We test the scenarion where agents operate using local-only sensing and zero inter-agent communication, where we observe an *emerging self-normalization property*, coming from stigmergic interaction, preventing overactuation. 
 - **Theoretical Gradient Consistency**: We provide a mathematical foundation theorem ensuring that discrete policy gradients converge to the mean-field limit as the swarm size $N \rightarrow \infty$.
 - **Parameter Efficiency:** In our toy examples, the decentralized approach utilizes *48% fewer parameters* in the 1d cases and *76% fewer* in the 2d case than centralized benchmarks while maintaining competitive performance.
 
@@ -44,29 +44,32 @@ For a more rigorous discussion about all the above points we suggest reading thr
 This research explores the intersection of Differentiable Programming, Operator Learning, and Swarm Intelligence. We demonstrate that treating a PDE solver as a neural network layer allows for the training of highly efficient, decentralized control policies. In this section we provide a brief introduction to the problem formulation. For a more rigorous discussion we refer to out [technical document](Multi_agent_report_2026.pdf).
 
 ### Problem Statement
-The control objective is to find an optimal control sequence $U(t) = \lbrace u_i(t) \rbrace_{i=1}^N$ and velocity sequence $V(t) = \lbrace v_i(t) \rbrace_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}\_{\text{track}}(z, z\_{\text{ref}})$, a term $\mathcal{L}\_{\text{force}}(u)$ discouraging large energy consumption, and $\mathcal{L}\_{\text{coll}}(\xi)$ to prevent collision between the actuators:
 
+The control objective is to find an optimal control sequence $U(t) = \lbrace u_i(t) \rbrace_{i=1}^N$ and velocity sequence $V(t) = \lbrace v_i(t) \rbrace_{i=1}^N$ that minimizes a cost functional $\mathcal{J}$ involving a tracking cost $\mathcal{L}\_{track}(z, z_{ref})$, a term $\mathcal{L}\_{force}(u)$ discouraging large energy consumption, and $\mathcal{L}\_{coll}(\xi)$ to prevent collision between the actuators:
 
-$$
-\min_{U,V} \mathcal{J} = \mathbb{E}_{z_0 \sim \mathcal{D}} \left[ \int_{0}^{T} \left( \mathcal{L}_{\text{track}}(z, z_{\text{ref}}) + \lambda_u \mathcal{L}_{\text{force}}(u) + \lambda_c \mathcal{L}_{\text{coll}}(\xi) \right) dt \right]
-$$
+$$\min_{U,V} \mathcal{J} = \mathbb{E}_{z_0 \sim \mathcal{D}} \left[ \int_{0}^{T} \left( \mathcal{L}_{track}(z, z_{ref}) + \lambda_u \mathcal{L}_{force}(u) + \lambda_c \mathcal{L}_{coll}(\xi) \right) dt \right]$$
 
-where $\xi$ is the position of the $i$-th actuator. Our system is subject to the System Dynamics (PDE):The state field $z(x,t)$ evolves according to a non-homogeneous nonlinear partial differential equation:
+where $\xi$ is the position of the $i$-th actuator.
+
+**System Dynamics (PDE):** The state field $z(x,t)$ evolves according to a non-homogeneous nonlinear partial differential equation:
+
 $$\frac{\partial z(x,t)}{\partial t} = \mathcal{A}(z; \mu) + \mathcal{B}(x,t)$$
 
-where the total forcing $\mathcal{B}(x,t)$ is the superposition of individual actuator contributions filtered through a spatial Gaussian kernel $b(x, \xi_i)$: 
-$$\mathcal{B}(x,t) = \sum_{i=1}^{N} b(x, \xi_i(t))u_i(t).$$
+where the total forcing $\mathcal{B}(x,t)$ is the superposition of individual actuator contributions filtered through a spatial Gaussian kernel $b(x, \xi_i)$:
 
-The actuator kinematics is s.t. each mobile actuator $i \in \{1, \dots, N\}$ follows first-order integrator dynamics:
-$$\frac{d\xi_i(t)}{dt} = v_i(t), \quad \xi_i(0) = \xi_{i,0}.$$
+$$\mathcal{B}(x,t) = \sum_{i=1}^{N} b(x, \xi_i(t)) u_i(t)$$
 
-The optimization is also subject to the following physical and kinematic limits (hard constraints):
-- Control Saturation: $|u_i(t)| \le u_{max}$
-- Kinematic Limits: $|v_i(t)| \le v_{max}$ 
+**Actuator Kinematics:** Each mobile actuator $i \in \{1, \dots, N\}$ follows first-order integrator dynamics:
+
+$$\frac{d\xi_i(t)}{dt} = v_i(t), \quad \xi_i(0) = \xi_{i,0}$$
+
+**Constraints:**
+- Control Saturation: $|u_i(t)| \le u_{\max}$
+- Kinematic Limits: $|v_i(t)| \le v_{\max}$
 - Boundary Containment: $\xi_i(t) \in \Omega$
 
 ### Differentiable Predictive Control
-To syntesize a policy approximating the optimal control sequence $U(t) = \lbrace u_i(t) \rbrace_{i=1}^N$ and velocity sequence $V(t) = \lbrace v_i(t) \rbrace_{i=1}^N$ we rely on Differentiable Predictive Control. In our framework, the control policy is parameterized by a neural operator $\mathcal{G}\_{\theta}$ that maps current observations to optimal actions. During training, we perform the following steps:
+To syntesize a policy approximating the optimal control sequence $U(t) = \{u_i(t)\}_{i=1}^N$ and velocity sequence $V(t) = \{v_i(t)\}_{i=1}^N$ we rely on DIfferentiable Predictive Control. In our framework, the control policy is parameterized by a neural operator $\mathcal{G}_{\theta}$ that maps current observations to optimal actions. During training, we perform the following steps:
 - **Forward Pass**: The current state $z_k$ and control actions $u_k$ are passed through a differentiable operator $\Psi$ (the PDE solver) to predict the future state $z_{k+1}$. It is relevant that such a solver is created using Tesseract, to allow differentiable simulations.
 - **Sensitivity Analysis**: By applying the chain rule through the solver, we compute exact sensitivity gradients of the future state with respect to the policy parameters $\theta$
 - **Policy Optimization**: These gradients are used to update the neural network, minimizing the total loss $\mathcal{J}$ over a trajectory of length $K$.
@@ -185,16 +188,19 @@ while the **decentralized policy** result for  the same problem is:
 ![Heat decentralized](/examples/heat1d/decentralized/heat_dpc_decentralized_ex2.png)
 
 We invite you to explore further our examples. In particular we highlight the `animate.py` scripts which are creating GIFs and MP4 documents (this might require you to install [FFMpegWriter](https://ffmpeg.org/)). `animate.py` produces results like the following for the Fisher-KPP equation using a **centralized policy**:
-![FKPP Animation Centralized](/examples/fkpp1d/centralized/fkpp_dpc_animation.gif)
-while the result for the **decentralized policy** is:
-![FKPP Animation Decentralized](/examples/fkpp1d/decentralized/fkpp_decentralized_animation.gif)
+<video src="examples/fkpp1d/centralized/fkpp_dpc_animation.mp4" width="100%" autoplay loop muted></video>
 
-Similar visualizations for the 2d Heat equation are the following:
+while the result for the **decentralized policy** is:
+
+<video src="examples/fkpp1d/decentralized/fkpp_decentralized_animation.mp4" width="100%" autoplay loop muted></video>
+
+Similar visualizations for the 2D Heat equation are the following:
+
 - **Centralized policy**:
-![FKPP Animation Decentralized](/examples/heat2D/decentralized/heat2d_animation.gif)
+<video src="examples/heat2D/centralized/heat2d_animation.mp4" width="100%" autoplay loop muted></video>
 
 - **Decentralized policy**:
-![FKPP Animation Decentralized](/examples/heat2D/decentralized/heat2d_animation.gif)
+<video src="examples/heat2D/decentralized/heat2d_animation.mp4" width="100%" autoplay loop muted></video>
 
 Last we highligh that the script supporting the empirical evidence underlying our self-normalization conjecture are produced running `/examples/fkpp1d/decentralized/visualize_lambda_effort.py` and `/examples/fkpp1d/decentralized/visualize_comparison.py`.
 
