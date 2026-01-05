@@ -188,16 +188,19 @@ while the **decentralized policy** result for  the same problem is:
 ![Heat decentralized](/examples/heat1d/decentralized/heat_dpc_decentralized_ex2.png)
 
 We invite you to explore further our examples. In particular we highlight the `animate.py` scripts which are creating GIFs and MP4 documents (this might require you to install [FFMpegWriter](https://ffmpeg.org/)). `animate.py` produces results like the following for the Fisher-KPP equation using a **centralized policy**:
-![FKPP Animation Centralized](/examples/fkpp1d/centralized/fkpp_dpc_animation.gif)
-while the result for the **decentralized policy** is:
-![FKPP Animation Decentralized](/examples/fkpp1d/decentralized/fkpp_decentralized_animation.gif)
+<video src="examples/fkpp1d/centralized/fkpp_dpc_animation.mp4" width="100%" autoplay loop muted></video>
 
-Similar visualizations for the 2d Heat equation are the following:
+while the result for the **decentralized policy** is:
+
+<video src="examples/fkpp1d/decentralized/fkpp_decentralized_animation.mp4" width="100%" autoplay loop muted></video>
+
+Similar visualizations for the 2D Heat equation are the following:
+
 - **Centralized policy**:
-![FKPP Animation Decentralized](/examples/heat2D/centralized/heat2d_animation.gif)
+<video src="examples/heat2D/centralized/heat2d_animation.mp4" width="100%" autoplay loop muted></video>
 
 - **Decentralized policy**:
-![FKPP Animation Decentralized](/examples/heat2D/decentralized/heat2d_animation.gif)
+<video src="examples/heat2D/decentralized/heat2d_animation.mp4" width="100%" autoplay loop muted></video>
 
 Last we highligh that the script supporting the empirical evidence underlying our self-normalization conjecture are produced running `/examples/fkpp1d/decentralized/visualize_lambda_effort.py` and `/examples/fkpp1d/decentralized/visualize_comparison.py`.
 
