@@ -369,6 +369,7 @@ The training loop (data generation happens inside `train.py`):
 3. `animate.py` - Create animated trajectories
 
 **Full workflow for all experiments:**
+Make sure you are at project root 
 ```bash
 # Heat 1D
 for variant in centralized decentralized; do
