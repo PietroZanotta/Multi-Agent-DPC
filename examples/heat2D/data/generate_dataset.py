@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Offline dataset generator for 2D Heat Equation Control.
 
@@ -8,6 +7,8 @@ Supports both 32×32 and 64×64 grid resolutions.
 Usage:
     python generate_dataset.py --grid-size 32 --samples 5000
     python generate_dataset.py --grid-size 64 --samples 1000
+    
+NOTE: This might take a while to run, especially for 64×64 grids.
 """
 
 import jax
