@@ -94,6 +94,15 @@ To syntesize a policy approximating the optimal control sequence $U(t) = \lbrace
 
 Note that part of the theoretical results on Zero-Shot Scalability rely on a conjecture that we are only empirically validating. For a more rigorous discussion about all the above points we suggest reading through our [technical document](Multi_agent_report_2026.pdf).
 
+Algorithm pseudocodes can be found below:
+- **Centralized Policy Pseudocode:**
+
+![pseudocode centralized](figs/algo_cent.png)
+
+- **Centralized Policy Pseudocode:**
+
+![pseudocode decentralized](figs/algo_dec.png)
+
 ---
 
 ## Numerical Experiments
