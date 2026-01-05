@@ -231,7 +231,7 @@ cd ../..
 ```
 
 > [!INFO]
-> Each `tesseract build` command creates a Docker image containing the PDE solver and its trained policy. The first build takes 5-10 minutes per solver; subsequent builds are cached. You can verify built images with:
+> Each `tesseract build` command creates a Docker image containing the PDE solver and its trained policy. Subsequent builds are cached. You can verify built images with:
 > ```bash
 > docker images | grep solver
 > ```
@@ -240,7 +240,7 @@ cd ../..
 
 ### Quick Start: Visualizing Pre-trained Models
 
-Pre-trained policy weights are included, so you can visualize results immediately without training (takes <1 min per experiment):
+Pre-trained policy weights are included, so you can visualize results immediately without training:
 
 #### **Heat Equation - 1D**
 
@@ -353,42 +353,41 @@ cd ../../heat2D/centralized && python animate.py
 
 ### Optional: Train Custom Policies
 
-To train policies on new datasets or modify architectures, use the training scripts. This requires significant compute (GPU recommended) and takes 15-60 min depending on system:
+To train policies on new datasets or modify architectures, use the training scripts. This requires significant compute (GPU recommended):
 
 ```bash
 # Example: Train 1D Heat centralized policy
 cd examples/heat1d/centralized
-python data_utils.py           # Generate 5000 training trajectories
-python train.py                # Train for 500 epochs (saves centralized_params.msgpack)
+python train.py                # Generates dataset and trains for 500 epochs (saves centralized_params.msgpack)
 python visualize_conference.py # Visualize results
+python animate.py              # Create animated trajectories
 ```
 
-The training loop:
-1. `data_utils.py` - Generate synthetic initial conditions and targets via Gaussian Random Fields
-2. `train.py` - Train the policy (500 epochs) and save weights
-3. `visualize_conference.py` - Generate visualization plots
-4. `animate.py` - Create animated trajectories
+The training loop (data generation happens inside `train.py`):
+1. `train.py` - Generates 5000 synthetic trajectories via Gaussian Random Fields, then trains the policy (500 epochs) and saves weights
+2. `visualize_conference.py` - Generate visualization plots from trained model
+3. `animate.py` - Create animated trajectories
 
 **Full workflow for all experiments:**
 ```bash
 # Heat 1D
 for variant in centralized decentralized; do
   cd examples/heat1d/$variant
-  python data_utils.py && python train.py && python visualize_conference.py
+  python train.py && python visualize_conference.py && python animate.py
   cd ../..
 done
 
 # Fisher-KPP 1D
 for variant in centralized decentralized; do
   cd examples/fkpp1d/$variant
-  python data_utils.py && python train.py && python visualize_conference.py
+  python train.py && python visualize_conference.py && python animate.py
   cd ../..
 done
 
-# Heat 2D (longer training time)
+# Heat 2D
 for variant in centralized decentralized; do
   cd examples/heat2D/$variant
-  python data_utils.py && python train.py && python visualize.py
+  python train.py && python visualize.py && python animate.py
   cd ../..
 done
 ```
@@ -397,18 +396,21 @@ done
 
 ### Advanced: Analyzing Scalability & Stigmergy
 
-For decentralized policies, explore the self-normalization property empirically:
+For decentralized policies, explore the self-normalization property and zero-shot scalability empirically:
 
 ```bash
 cd examples/fkpp1d/decentralized
 
-# Generate analysis for different coordination weights
+# Analyze control effort across different effort penalty weights
 python visualize_lambda_effort.py
-# Demonstrates how stigmergic interaction (implicit coordination through field sensing)
-# prevents overactuation as swarm size increases
+# Tests how control effort scales as the number of agents increases beyond training size.
+# Validates the self-normalization conjecture: individual control efforts u_i ~ O(1/N),
+# so the total forcing norm ||B|| remains bounded as N increases.
 
-# Compare centralized vs. decentralized
+# Test zero-shot scalability: deploy policy trained on N agents on M agents (M ≠ N)
 python visualize_comparison.py
+# Evaluates tracking MSE and control effort as agent count varies from training conditions.
+# Demonstrates that policies generalize to unseen swarm sizes without retraining.
 ```
 
 ---
