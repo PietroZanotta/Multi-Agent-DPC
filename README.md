@@ -365,11 +365,6 @@ python visualize_conference.py # Visualize results
 python animate.py              # Create animated trajectories
 ```
 
-The training loop (data generation happens inside `train.py`):
-1. `train.py` - Generates 5000 synthetic trajectories via Gaussian Random Fields, then trains the policy (500 epochs) and saves weights
-2. `visualize_conference.py` - Generate visualization plots from trained model
-3. `animate.py` - Create animated trajectories
-
 **Full workflow for all experiments:**
 
 Make sure you are at project root: 
@@ -378,23 +373,27 @@ Make sure you are at project root:
 for variant in centralized decentralized; do
   cd examples/heat1d/$variant
   python train.py && python visualize_conference.py && python animate.py
-  cd ../..
+  cd ../../..
 done
+
+cd ../..;
 
 # Fisher-KPP 1D
 for variant in centralized decentralized; do
   cd examples/fkpp1d/$variant
   python train.py && python visualize_conference.py && python animate.py
-  cd ../..
+  cd ../../..
 done
+
 
 # Heat 2D
 for variant in centralized decentralized; do
   cd examples/heat2D/$variant
   python train.py && python visualize.py && python animate.py
-  cd ../..
+  cd ../../..
 done
 ```
+
 
 ---
 
