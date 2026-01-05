@@ -37,6 +37,7 @@ For a more rigorous discussion about all the above points we suggest reading thr
 - [Numerical Experiments](#numerical-experiments)
 - [Structure of this Repository](#structure-of-this-repository)
 - [Getting Started](#getting-started)
+- [Tesseract](#tesseract)
 - [Future Work](#future-work)
 - [Tech Stack](#tech-stack)
 
@@ -211,6 +212,7 @@ Last we highligh that the script supporting the empirical evidence underlying ou
 1. Build the tesseract of interest (you find then in the `tesseracts` folder) with `tesseract build PATH/TO/TESSERACT` (e.g. for decentralize FKPP do `cd tesseracts/solverFKPP_decentralized && tesseract build .`)
 2. Train the policy in `examples/PDE_OF_INTEREST` (e.g. for decentralize FKPP do `cd ../../examples/fkpp1d/decentralized && python train.py`). NOTE that pretrained models are already provided for anybody who does not have access to a GPU.
 3. Produce the visualizations of you interest (e.g. for decentralize FKPP do `python visualize_conference.py && python animate.py`) 
+
 ---
 
 ## Future Work
@@ -230,4 +232,5 @@ There are various research directions we believe can stem from this project. Her
 - **Hardware Acceleration:** CUDA backend with NVIDIA driver v581.57
 
 See our [[technical document](Multi_agent_report_2026.pdf)](Multi_agent_report_2026.pdf) for details about our experimental setup.
+
 ---
