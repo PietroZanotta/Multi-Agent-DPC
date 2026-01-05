@@ -222,7 +222,7 @@ cd ../solverHeat_decentralized && tesseract build .
 cd ../solverFKPP_centralized && tesseract build .
 cd ../solverFKPP_decentralized && tesseract build .
 
-# Build 2D Heat Equation (likely already built in demo environments)
+# Build 2D Heat Equation (2D)
 cd ../solverHeat2D_centralized && tesseract build .
 cd ../solverHeat2D_decentralized && tesseract build .
 
@@ -333,11 +333,17 @@ cd ../../heat2D/centralized && python animate.py
 
 **Example animations:**
 - **Fisher-KPP - Centralized:** 
+  
   <img src="figs/fkpp_centralized_animation.gif" width="400">
+
 - **Fisher-KPP - Decentralized:** 
+  
   <img src="figs/fkpp_decentralized_animation.gif" width="400">
+
 - **Heat 2D - Centralized:** 
+  
   <img src="figs/heat2d_animation_centralized.gif" width="400">
+
 - **Heat 2D - Decentralized:** 
   <img src="figs/heat2d_animation_decentalized.gif" width="400">
 
