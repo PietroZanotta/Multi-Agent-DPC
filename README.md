@@ -332,6 +332,7 @@ cd ../../heat2D/centralized && python animate.py
 > ```
 
 **Example animations:**
+
 - **Fisher-KPP - Centralized:** 
   
   <img src="figs/fkpp_centralized_animation.gif" width="400">
@@ -345,6 +346,7 @@ cd ../../heat2D/centralized && python animate.py
   <img src="figs/heat2d_animation_centralized.gif" width="400">
 
 - **Heat 2D - Decentralized:** 
+  
   <img src="figs/heat2d_animation_decentalized.gif" width="400">
 
 ---
