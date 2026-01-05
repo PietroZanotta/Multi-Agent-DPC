@@ -46,9 +46,12 @@ For a more rigorous discussion about all the above points we suggest reading thr
     - [Prerequisites](#prerequisites)
     - [Building Tesseract Solvers](#building-tesseract-solvers)
     - [Quick Start: Visualizing Pre-trained Models](#quick-start-visualizing-pre-trained-models)
+      - [**Heat Equation - 1D**](#heat-equation---1d)
+      - [**Fisher-KPP Equation - 1D**](#fisher-kpp-equation---1d)
+      - [**Heat Equation - 2D**](#heat-equation---2d)
     - [Optional: Generate Animations](#optional-generate-animations)
     - [Optional: Train Custom Policies](#optional-train-custom-policies)
-    - [Advanced: Analyzing Scalability & Stigmergy](#advanced-analyzing-scalability--stigmergy)
+    - [Advanced: Analyzing Scalability \& Stigmergy](#advanced-analyzing-scalability--stigmergy)
     - [Troubleshooting](#troubleshooting)
   - [Future Work](#future-work)
   - [Tech Stack](#tech-stack)
@@ -329,10 +332,14 @@ cd ../../heat2D/centralized && python animate.py
 > ```
 
 **Example animations:**
-- **Fisher-KPP - Centralized:** <img src="figs/fkpp_centralized_animation.gif" width="400">
-- **Fisher-KPP - Decentralized:** <img src="figs/fkpp_decentralized_animation.gif" width="400">
-- **Heat 2D - Centralized:** <img src="figs/heat2d_animation_centralized.gif" width="400">
-- **Heat 2D - Decentralized:** <img src="figs/heat2d_animation_decentalized.gif" width="400">
+- **Fisher-KPP - Centralized:** 
+  <img src="figs/fkpp_centralized_animation.gif" width="400">
+- **Fisher-KPP - Decentralized:** 
+  <img src="figs/fkpp_decentralized_animation.gif" width="400">
+- **Heat 2D - Centralized:** 
+  <img src="figs/heat2d_animation_centralized.gif" width="400">
+- **Heat 2D - Decentralized:** 
+  <img src="figs/heat2d_animation_decentalized.gif" width="400">
 
 ---
 
