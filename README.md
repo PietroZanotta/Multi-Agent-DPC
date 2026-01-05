@@ -17,7 +17,7 @@ Contacts:
 
 <sup>1</sup>: shared first authorship
 
-![Heat 2d Decentralized](figs/heat2d_animation_decentalized.gif)
+![Heat 2d Decentralized](figs/heat2d_animation_decentralized.gif)
 
 ---
 
